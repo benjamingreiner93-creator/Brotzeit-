@@ -13,3 +13,5 @@ Rezept auswählen; die hinterlegten Richtwerte werden geladen. Alle Zeiten könn
 
 ## Nutzung und Rechte
 Es wurde bewusst keine Open-Source-Lizenz beigelegt. Für eigene rechtliche Hinweise und Veröffentlichungsbedingungen gegebenenfalls fachkundigen Rat einholen.
+
+Version 1.1.1: Cache-Aktualisierung für GitHub Pages. Alle Dateien aus brotzeit-pwa direkt ins Repository-Hauptverzeichnis hochladen. Vor Änderungen eigene Rezepte exportieren.
