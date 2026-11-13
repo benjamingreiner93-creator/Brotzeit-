@@ -116,3 +116,57 @@ $('importFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)retur
 $('resetButton').onclick=()=>{if(confirm('Eigene Rezepte und Einstellungen löschen? Bitte vorher ein Backup erstellen.')){recipes=clone(defaults);localStorage.removeItem(backupKey);save();updateSelect();recipeSelectionChanged()}};
 const soon=new Date(Date.now()+24*3600000);soon.setMinutes(0,0,0);const pad=n=>String(n).padStart(2,'0');$('finishAt').value=`${soon.getFullYear()}-${pad(soon.getMonth()+1)}-${pad(soon.getDate())}T${pad(soon.getHours())}:${pad(soon.getMinutes())}`;
 updateSelect();resetHours();calculate();restorePlannerSettings();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+const screenToggle=$('keepScreenOn');
+const screenStatus=$('screenStatus');
+let screenLock=null;
+let screenLockPending=false;
+
+async function syncScreenLock(){
+  if(!screenToggle.checked || document.visibilityState!=='visible'){
+    const lock=screenLock;
+    screenLock=null;
+    if(!screenToggle.checked)screenStatus.textContent='';
+    if(lock && !lock.released)await lock.release();
+    return;
+  }
+  if(screenLockPending || (screenLock && !screenLock.released))return;
+
+  screenLockPending=true;
+  try{
+    const lock=await navigator.wakeLock.request('screen');
+    if(!screenToggle.checked || document.visibilityState!=='visible'){
+      await lock.release();
+      return;
+    }
+    if(lock.released){
+      screenStatus.textContent='Das Gerät hat die Displaysperre wieder aktiviert.';
+      return;
+    }
+    screenLock=lock;
+    screenStatus.textContent='Das Display bleibt an, solange Brotzeit sichtbar ist.';
+    lock.addEventListener('release',()=>{
+      if(screenLock!==lock)return;
+      screenLock=null;
+      if(screenToggle.checked && document.visibilityState==='visible'){
+        screenStatus.textContent='Das Gerät hat die Displaysperre wieder aktiviert.';
+      }
+    },{once:true});
+  }catch{
+    if(screenToggle.checked && document.visibilityState==='visible'){
+      screenToggle.checked=false;
+      screenStatus.textContent='Das Display konnte nicht eingeschaltet gehalten werden.';
+    }
+  }finally{
+    screenLockPending=false;
+  }
+}
+
+screenToggle.checked=false;
+if(typeof navigator.wakeLock?.request==='function'){
+  screenToggle.addEventListener('change',syncScreenLock);
+  document.addEventListener('visibilitychange',syncScreenLock);
+}else{
+  screenToggle.disabled=true;
+  screenStatus.textContent='Diese Option ist in diesem Browser nicht verfügbar.';
+}
