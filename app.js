@@ -359,7 +359,7 @@ function saveBaking(next){
   baking=next;
 }
 
-function buildBakePlan(end){
+function buildPlannerBake(end){
   const recipe=recipes.find(item=>item.id===$('planRecipe').value);
   const mode=$('planTemperature').value;
   const cold=mode==='cold';
@@ -370,16 +370,31 @@ function buildBakePlan(end){
   const startWarm=cold?num($('planStartWarm').value,0,240):0;
   const preheat=num($('planPreheat').value,0,120);
   const prep=num($('planPrep').value,0,180);
-  const finish=end.getTime();
-  const oven=finish-bake*60000;
-  const shape=oven-proof*60000;
-  const stockEnd=shape-warm*60000;
-  const stockStart=stockEnd-stock*3600000;
-  const mixing=stockStart-startWarm*60000;
+  return buildBakePlan({recipe,mode,bake,proof,stock,warm,startWarm,preheat,prep,start:end.getTime()-
+    ((bake+proof+warm+startWarm+prep)*60000+stock*3600000)});
+}
+
+function buildCalculatorBake(){
+  const recipe=current();
+  const mode=$('temperature').value;
+  const times=recipeTiming(recipe.id);
+  const {start:startWarm,proof}=times[mode];
+  return buildBakePlan({recipe,mode,stock:num($('hours').value,2,72),proof,startWarm,
+    warm:mode==='cold'?num(recipe.warmMinutes,0,360):0,
+    bake:times.bake,preheat:times.preheat,prep:times.prep,start:Date.now()});
+}
+
+function buildBakePlan({recipe,mode,bake,proof,stock,warm,startWarm,preheat,prep,start}){
+  const mixing=start+prep*60000;
+  const stockStart=mixing+startWarm*60000;
+  const stockEnd=stockStart+stock*3600000;
+  const shape=stockEnd+warm*60000;
+  const oven=shape+proof*60000;
+  const finish=oven+bake*60000;
   const steps=[
-    {id:'prep',label:'Zutaten vorbereiten',at:mixing-prep*60000},
+    {id:'prep',label:'Zutaten vorbereiten',at:start},
     ...(startWarm?[{id:'mix',label:'Teig ansetzen und anspringen lassen',at:mixing}]:[]),
-    {id:'stock',label:cold?'Kühlschrankgare beginnen':'Stockgare beginnen',at:stockStart},
+    {id:'stock',label:mode==='cold'?'Kühlschrankgare beginnen':'Stockgare beginnen',at:stockStart},
     ...(warm?[{id:'warm',label:'Teig aus dem Kühlschrank nehmen',at:stockEnd}]:[]),
     {id:'shape',label:'Formen und Stückgare beginnen',at:shape},
     {id:'oven',label:'Backen beginnen',at:oven},
@@ -403,7 +418,7 @@ function plan(){
     return;
   }
   $('planStatus').textContent='';
-  plannedBake=buildBakePlan(end);
+  plannedBake=buildPlannerBake(end);
   const rows=[...plannedBake.steps,...(plannedBake.preheat?[plannedBake.preheat]:[])].sort((a,b)=>a.at-b.at);
   $('planResult').innerHTML='<h2>Dein Zeitplan</h2>'+rows.map(({label,at})=>
     `<div class="row"><span>${escapeHTML(label)}</span><strong>${dateLocal(new Date(at))}</strong></div>`
@@ -415,7 +430,7 @@ function plan(){
 
 function startBake(){
   if(baking.active){
-    $('planStatus').textContent='Ein Backversuch läuft bereits. Du kannst unten weitermachen.';
+    $('planStatus').textContent='Ein Backversuch läuft bereits.';
   }else if(plannedBake){
     const active=clone(plannedBake);
     const offset=Math.max(0,Date.now()-active.steps[0].at);
@@ -424,15 +439,21 @@ function startBake(){
     if(!updateActive(active))return;
     if(offset)$('bakeStatus').textContent='Der Zeitplan wurde auf den Start ab jetzt verschoben.';
   }
-  $('bakeTitle').focus();
+  openBakeMode();
 }
 
-function updateActive(active){
+$('startBakeFromCalculator').onclick=()=>{
+  const status=$('calculatorBakeStatus');
+  status.textContent='';
+  if(!baking.active&&!updateActive(buildCalculatorBake(),status))return;
+  openBakeMode();
+};
+
+function updateActive(active,errorStatus=baking.active?$('bakeStatus'):$('planStatus')){
   try{
     saveBaking({...baking,active});
   }catch{
-    const status=baking.active?$('bakeStatus'):$('planStatus');
-    status.textContent='Speichern fehlgeschlagen. Prüfe den verfügbaren Browserspeicher.';
+    errorStatus.textContent='Speichern fehlgeschlagen. Prüfe den verfügbaren Browserspeicher.';
     return false;
   }
   $('bakeStatus').textContent='';
@@ -455,45 +476,95 @@ function bakeCheck(active,step){
 }
 function renderBake(){
   const active=baking.active;
-  $('bakeSession').classList.toggle('hidden',!active);
+  const step=active&&currentBakeStep(active);
   $('resumeBake').classList.toggle('hidden',!active);
+  $('startBakeFromCalculator').textContent=active?'Backmodus fortsetzen':'Jetzt backen';
   $('bakeDiaryForm').classList.add('hidden');
-  if(!active)return;
-  const step=currentBakeStep(active);
-  const action={shape:'Jetzt formen',warm:'Jetzt herausnehmen',oven:'Jetzt backen',finish:'Brot fertig'};
+  $('bakeActions').classList.toggle('hidden',!step);
+  if(!active){
+    if($('bakeSession').open)$('bakeSession').close();
+    $('bakeSettings').open=false;
+    return;
+  }
+
+  const action={prep:'Zutaten vorbereitet',mix:'Teig angesetzt',stock:'Gare gestartet',
+    shape:'Jetzt formen',warm:'Jetzt herausnehmen',oven:'Jetzt backen',finish:'Brot fertig'};
   const check=step?bakeCheck(active,step):'';
-  const ovenPending=step&&active.preheat&&!Object.hasOwn(active.done,'preheat')
-    &&!Object.hasOwn(active.done,'oven');
   $('bakeCancel').textContent=step?'Backmodus abbrechen':'Ohne Eintrag beenden';
   $('bakeProgress').innerHTML=`
-    <p><strong>${escapeHTML(active.recipeName)}</strong> · ${modeLabel(active.mode)}</p>
+    <p class="bake-recipe-name"><strong>${escapeHTML(active.recipeName)}</strong> · ${modeLabel(active.mode)}</p>
     ${step?`<div class="bake-current">
       <h3 id="bakeStepTitle" tabindex="-1">${escapeHTML(step.label)}</h3>
-      <p>${dateLocal(new Date(step.at))} · <span id="bakeCountdown"></span></p>
-      ${check?`<p class="bake-check">${check} <a href="./backwissen.html#faq">Tipps zur Teigreife</a></p>`:''}
-      <button class="primary" id="completeBakeStep">${action[step.id]??'Jetzt erledigt'}</button>
-      <button class="secondary" id="delayBakeStep">${check?'30 Min. länger gehen lassen':'Restplan +30 Min.'}</button>
-    </div>`:'<p>Dein Brot ist fertig. Hier kannst du festhalten, wie es gelaufen ist.</p>'}
-    ${ovenPending?`<p class="muted">Ofen vorheizen · ${dateLocal(new Date(active.preheat.at))}</p>
-      <button class="secondary" id="completePreheat">Vorheizen gestartet</button>`:''}
-    ${step?`<details><summary>Gesamter Backplan</summary><ol class="bake-steps">${active.steps.map(item=>{
-      const done=active.done[item.id];
-      return `<li${done?' class="bake-done"':''}>${done?'✓ ':''}${escapeHTML(item.label)} · ${dateLocal(new Date(done??item.at))}</li>`;
-    }).join('')}</ol></details>
-    <details${step.id==='prep'?' open':''}><summary>Zutaten und Rezept</summary>
+      <p class="muted">${dateLocal(new Date(step.at))} · <span id="bakeCountdown"></span></p>
+      ${check?`<p>${check} <a href="./backwissen.html#faq">Tipps zur Teigreife</a></p>`:''}
+      ${step.id==='oven'?`<p><strong>Backen:</strong> ${escapeHTML(active.bakeHint)}</p>`:''}
+      ${step.id==='finish'?'':`<button class="secondary bake-delay" id="delayBakeStep">${check?'30 Min. länger gehen lassen':'+30 Min.'}</button>`}
+    </div>
+    <div id="bakeOven"></div>
+    <details class="bake-tools"${step.id==='prep'?' open':''}><summary>Zutaten</summary>
       ${[...active.ingredients,[yeastLabel(active.yeastType)+' (Schätzwert)',active.yeast,'g']].map(([name,value,unit])=>
         `<div class="row"><span>${escapeHTML(name)}</span><strong>${formatAmount(value)} ${unit??'g'}</strong></div>`).join('')}
-      <ol>${active.recipeSteps.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ol>
-      <p>${escapeHTML(active.bakeHint)}</p></details>`:''}`;
+    </details>
+    <h3>Rezeptanleitung</h3>
+    <ol class="bake-instructions">${active.recipeSteps.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ol>
+    ${step.id==='oven'?'':`<p><strong>Backen:</strong> ${escapeHTML(active.bakeHint)}</p>`}
+    <details class="bake-tools"><summary>Gesamter Backplan</summary><ol class="bake-steps">${active.steps.map(item=>{
+      const done=active.done[item.id];
+      return `<li${done?' class="bake-done"':''}>${done?'✓ ':''}${escapeHTML(item.label)} · ${dateLocal(new Date(done??item.at))}</li>`;
+    }).join('')}</ol></details>`:'<p>Dein Brot ist fertig.</p>'}`;
   if(step){
-    $('completeBakeStep').onclick=()=>changeBakeProgress(step.id);
-    $('delayBakeStep').onclick=()=>changeBakeProgress(step.id,30);
-    if(ovenPending)$('completePreheat').onclick=()=>changeBakeProgress('preheat');
+    const confirmStep=$('completeBakeStep');
+    confirmStep.textContent=action[step.id];
+    confirmStep.onclick=()=>changeBakeProgress(step.id);
+    const delay=$('delayBakeStep');
+    if(delay&&step.id!=='finish')delay.onclick=()=>changeBakeProgress(step.id,30);
+    renderBakeOven();
     updateBakeCountdown();
   }else{
     fillDiaryForm(active);
   }
 }
+
+function renderBakeOven(){
+  const active=baking.active;
+  const panel=$('bakeOven');
+  if(!active.preheat||Object.hasOwn(active.done,'oven')){
+    panel.innerHTML='';
+    return;
+  }
+  const started=active.done.preheat;
+  panel.className='bake-oven';
+  panel.innerHTML=`
+    <strong id="bakeOvenStatus" role="status" tabindex="-1">${started==null?'Ofen vorheizen':'✓ Vorheizen läuft'}</strong>
+    <p class="muted">${started==null?'Geplant für '+dateLocal(new Date(active.preheat.at)):
+      'Gestartet um '+new Date(started).toLocaleTimeString('de-DE',{timeStyle:'short'})}</p>
+    ${started==null?'':'<p id="bakePreheatCountdown" class="muted"></p>'}
+    ${started==null?'<button class="secondary" id="completePreheat">Vorheizen beginnen</button>':''}`;
+  if(started==null)$('completePreheat').onclick=()=>{
+    const next=clone(baking.active);
+    next.done.preheat=Date.now();
+    next.preheat.duration=Math.max(0,next.steps.find(step=>step.id==='oven').at-next.preheat.at);
+    try{
+      saveBaking({...baking,active:next});
+    }catch{
+      $('bakeStatus').textContent='Das Vorheizen konnte nicht gespeichert werden.';
+      return;
+    }
+    $('bakeStatus').textContent='';
+    renderBakeOven();
+    updateBakeCountdown();
+    $('bakeOvenStatus').focus({preventScroll:true});
+  };
+}
+
+function openBakeMode(){
+  const dialog=$('bakeSession');
+  if(!baking.active||dialog.open)return;
+  dialog.showModal();
+  $('bakeContent').scrollTop=0;
+  $('bakeTitle').focus({preventScroll:true});
+}
+$('bakeClose').onclick=()=>$('bakeSession').close();
 
 function changeBakeProgress(id,delay=0){
   const active=clone(baking.active);
@@ -501,6 +572,9 @@ function changeBakeProgress(id,delay=0){
   const now=Date.now();
   const offset=delay?Math.max(0,now-currentStep.at)+delay*60000
     : id===currentStep.id&&id!=='finish'?now-currentStep.at:0;
+  if(active.preheat&&Object.hasOwn(active.done,'preheat')&&active.preheat.duration==null){
+    active.preheat.duration=Math.max(0,active.steps.find(step=>step.id==='oven').at-active.preheat.at);
+  }
   if(!delay)active.done[id]=now;
   if(offset){
     for(const step of active.steps){
@@ -508,16 +582,25 @@ function changeBakeProgress(id,delay=0){
     }
     if(active.preheat&&!Object.hasOwn(active.done,'preheat'))active.preheat.at+=offset;
   }
-  if(updateActive(active))($('bakeStepTitle')??$('diaryYeast')).focus();
+  if(updateActive(active)){
+    $('bakeContent').scrollTop=0;
+    (currentBakeStep(active)?$('bakeStepTitle'):$('diaryYeast')).focus({preventScroll:true});
+  }
 }
 
 function updateBakeCountdown(){
-  const countdown=$('bakeCountdown');
-  if(!countdown||!baking.active)return;
-  const at=currentBakeStep(baking.active)?.at;
-  if(at==null)return;
-  const minutes=Math.ceil((at-Date.now())/60000);
-  countdown.textContent=minutes>0?`in ${Math.floor(minutes/60)?Math.floor(minutes/60)+' Std. ':''}${minutes%60} Min.`:'jetzt fällig';
+  const active=baking.active;
+  const step=active&&currentBakeStep(active);
+  if(!step)return;
+  const now=Date.now();
+  const minutes=Math.ceil((step.at-now)/60000);
+  $('bakeCountdown').textContent=minutes>0?`in ${Math.floor(minutes/60)?Math.floor(minutes/60)+' Std. ':''}${minutes%60} Min.`:'jetzt fällig';
+  if(active.preheat&&Object.hasOwn(active.done,'preheat')&&!Object.hasOwn(active.done,'oven')){
+    const oven=active.steps.find(item=>item.id==='oven');
+    const duration=active.preheat.duration??Math.max(0,oven.at-active.preheat.at);
+    const remaining=Math.ceil((active.done.preheat+duration-now)/60000);
+    $('bakePreheatCountdown').textContent=remaining>0?`Geplante Vorheizzeit: noch ${remaining} Min.`:'Geplante Vorheizzeit erreicht. Ofentemperatur prüfen.';
+  }
 }
 
 const yeastLabel=type=>type==='fresh'?'Frischhefe':'Trockenhefe';
@@ -609,7 +692,7 @@ $('diaryEntries').onclick=event=>{
   renderList();
   $('diaryStatus').textContent='Backversuch gelöscht.';
 };
-$('resumeBake').onclick=()=>$('bakeTitle').focus();
+$('resumeBake').onclick=openBakeMode;
 $('bakeCancel').onclick=()=>{
   if(!confirm('Diesen Backversuch ohne Tagebucheintrag beenden?'))return;
   if(updateActive(null)){

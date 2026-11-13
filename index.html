@@ -5,7 +5,7 @@
 .recipe summary{cursor:pointer;padding:8px 0;overflow-wrap:anywhere}
 .recipe summary .muted{display:block;margin-top:5px}
 #editor{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;padding:0;background:#f7f6f0;color:inherit;overscroll-behavior:contain}
-body:has(#editor[open]){overflow:hidden}
+body:has(#editor[open],#bakeSession[open]){overflow:hidden}
 .recipe-form{display:flex;flex-direction:column;height:100%}
 .editor-header{padding-top:calc(18px + env(safe-area-inset-top))}
 .editor-header h2{margin:0}
@@ -26,6 +26,26 @@ body:has(#editor[open]){overflow:hidden}
 .editor-content details{margin-top:12px}
 .backwissen-link{display:table;margin-top:10px;padding:5px 0;color:white;font-size:14px;font-weight:700;text-underline-offset:3px}
 
+#bakeSession{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;background:#f7f6f0;color:inherit}
+.bake-shell{height:100%;display:flex;flex-direction:column}
+.bake-header,.bake-actions{flex:none;background:white}
+.bake-header{border-bottom:1px solid #e6e7df;padding:calc(10px + env(safe-area-inset-top)) 16px 10px}
+.bake-header-inner,.bake-actions-inner{max-width:688px;margin:auto}
+.bake-header-inner{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.bake-header h2{margin:0;color:#304b38}
+.bake-header button{margin:0;min-height:44px}
+.bake-content{width:100%;max-width:720px;margin:auto;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px 16px 20px}
+.bake-actions{border-top:1px solid #e6e7df;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.bake-actions button{width:100%;min-height:48px;margin:0}
+.bake-recipe-name{margin:0;overflow-wrap:anywhere}
+.bake-instructions{padding-left:22px}
+.bake-instructions li{margin-bottom:5px}
+.bake-oven{margin:12px 0;padding:12px;background:#fff5e2;border-radius:12px}
+.bake-oven p{margin:4px 0}
+.bake-oven button{min-height:44px}
+.bake-delay{min-height:44px}
+.bake-tools{margin-top:14px}
+.bake-tools summary{cursor:pointer;padding:8px 0}
 .bake-current{border-left:4px solid #52765c;background:#edf2e9;padding:14px;border-radius:10px;margin:12px 0}
 .bake-current h3,.bake-current p{margin:0 0 7px}
 .bake-check{margin-top:10px}
@@ -37,7 +57,7 @@ body:has(#editor[open]){overflow:hidden}
 .bake-status:empty{display:none}
 @media(max-width:350px){.bake-form .two{grid-template-columns:1fr}}
 </style></head><body><header><h1>🌾 Brotzeit</h1><small>Deine Brotbackstube für unterwegs</small><a class="backwissen-link" href="./backwissen.html">Backwissen <span aria-hidden="true">↗</span></a></header><main>
-<section id="calculator" class="active"><div class="card"><h2>Teigrechner</h2><label for="recipeSelect">Rezept</label><select id="recipeSelect"></select><div class="two"><div><label for="flour">Gesamtmehlmenge</label><output id="flour" aria-live="polite"></output></div><div><label for="hours">Stockgare (Stunden)</label><input id="hours" type="number" min="2" max="72" step="0.5" value="16"></div></div><label for="temperature">Teigführung</label><select id="temperature"><option value="cold">Kühlschrank (4–5 °C)</option><option value="room">Raumtemperatur (20–22 °C)</option></select><label for="yeastType">Hefe</label><select id="yeastType"><option value="dry">Trockenhefe</option><option value="fresh">Frischhefe</option></select><label class="display-toggle"><input id="keepScreenOn" type="checkbox" aria-describedby="screenStatus"> Display eingeschaltet lassen</label><p class="muted display-status" id="screenStatus" role="status"></p></div><div class="card"><h2>Zutaten</h2><div id="ingredients"></div><p class="muted" id="hydration"></p><div class="warning">Hefemengen sind Näherungswerte für die gewählte Temperatur und Zeit. Teigentwicklung beobachten! Roggenmischbrot ohne Säuerung unterscheidet sich von traditionellem Sauerteigbrot.</div><button class="primary" id="copyRecipe">Rezept kopieren</button><p class="muted" id="copyStatus" role="status"></p></div><div class="card"><h2>Zubereitung</h2><p id="fermentationInfo" class="muted"></p><ol id="steps"></ol><p id="bakeInfo"></p></div></section>
+<section id="calculator" class="active"><div class="card"><h2>Teigrechner</h2><label for="recipeSelect">Rezept</label><select id="recipeSelect"></select><div class="two"><div><label for="flour">Gesamtmehlmenge</label><output id="flour" aria-live="polite"></output></div><div><label for="hours">Stockgare (Stunden)</label><input id="hours" type="number" min="2" max="72" step="0.5" value="16"></div></div><label for="temperature">Teigführung</label><select id="temperature"><option value="cold">Kühlschrank (4–5 °C)</option><option value="room">Raumtemperatur (20–22 °C)</option></select><label for="yeastType">Hefe</label><select id="yeastType"><option value="dry">Trockenhefe</option><option value="fresh">Frischhefe</option></select><label class="display-toggle"><input id="keepScreenOn" type="checkbox" aria-describedby="screenStatus"> Display eingeschaltet lassen</label><p class="muted display-status" id="screenStatus" role="status"></p></div><div class="card"><h2>Zutaten</h2><div id="ingredients"></div><p class="muted" id="hydration"></p><div class="warning">Hefemengen sind Näherungswerte für die gewählte Temperatur und Zeit. Teigentwicklung beobachten! Roggenmischbrot ohne Säuerung unterscheidet sich von traditionellem Sauerteigbrot.</div><button class="primary" id="startBakeFromCalculator">Jetzt backen</button><button class="secondary" id="copyRecipe">Rezept kopieren</button><p class="muted bake-status" id="calculatorBakeStatus" role="status"></p><p class="muted" id="copyStatus" role="status"></p></div><div class="card"><h2>Zubereitung</h2><p id="fermentationInfo" class="muted"></p><ol id="steps"></ol><p id="bakeInfo"></p></div></section>
 <section id="library">
   <div class="card"><h2>Meine Rezepte</h2><div id="recipeList"></div><button class="primary" id="newRecipe">Rezept hinzufügen</button></div>
   <div class="card"><h2>Backtagebuch</h2><p id="diaryStatus" class="muted bake-status" role="status"></p><div id="diaryEntries"></div></div>
@@ -84,12 +104,18 @@ body:has(#editor[open]){overflow:hidden}
   </form>
 </dialog>
 <section id="planner"><div class="card"><h2>Backzeitplaner</h2><p class="muted">Plane rückwärts vom gewünschten Zeitpunkt, zu dem das Brot fertig gebacken sein soll.</p><label for="planRecipe">Brot auswählen</label><select id="planRecipe"></select><label for="planTemperature">Teigführung</label><select id="planTemperature"><option value="cold">Kühlschrank (4–5 °C)</option><option value="room">Raumtemperatur (20–22 °C)</option></select><label for="finishAt">Gewünschte Fertigstellung</label><input id="finishAt" type="datetime-local"><p class="muted">Die folgenden Zeiten werden beim Rezept- oder Temperaturwechsel automatisch geladen und können jederzeit überschrieben werden.</p><div class="two"><div><label for="planRest">Stockgare (Std.)</label><input id="planRest" type="number" value="16" min="2" max="72" step="0.5"></div><div><label for="planBake">Backzeit (Min.)</label><input id="planBake" type="number" value="35" min="5" max="180"></div><div><label for="planPrep">Vorbereitung (Min.)</label><input id="planPrep" type="number" value="30" min="0" max="180"></div><div><label for="planProof">Stückgare (Min.)</label><input id="planProof" type="number" value="90" min="0" max="360"></div><div id="planWarmField" class="hidden"><label for="planWarm">Warmwerden nach Kühlschrank (Min.)</label><input id="planWarm" type="number" value="0" min="0" max="360"></div><div id="planStartWarmField"><label for="planStartWarm">Anspringen vor Kühlschrank (Min.)</label><input id="planStartWarm" type="number" value="60" min="0" max="240"></div><div><label for="planPreheat">Ofen vorheizen (Min.)</label><input id="planPreheat" type="number" value="30" min="0" max="120"></div></div><button class="secondary" id="planDefaults">Rezeptzeiten neu laden</button><button class="primary" id="planButton">Zeitplan berechnen</button><button class="secondary hidden" id="resumeBake">Laufenden Backmodus öffnen</button><p class="muted" id="planStatus" role="status"></p></div><div id="planResult" class="card hidden"></div>
-  <div id="bakeSession" class="card hidden" aria-labelledby="bakeTitle">
-    <h2 id="bakeTitle" tabindex="-1">Backmodus</h2>
-    <div id="bakeProgress"></div>
-    <label class="display-toggle"><input id="bakeScreenOn" type="checkbox" aria-describedby="bakeScreenStatus"> Display eingeschaltet lassen</label>
-    <p class="muted display-status" id="bakeScreenStatus" role="status"></p>
-    <p id="bakeStatus" class="muted bake-status" role="status"></p>
+</section>
+<dialog id="bakeSession" aria-labelledby="bakeTitle">
+  <div class="bake-shell">
+    <header class="bake-header">
+      <div class="bake-header-inner">
+        <h2 id="bakeTitle" tabindex="-1">Backmodus</h2>
+        <button type="button" id="bakeClose" class="secondary">Schließen</button>
+      </div>
+    </header>
+    <div id="bakeContent" class="bake-content">
+      <div id="bakeProgress"></div>
+      <p id="bakeStatus" class="muted bake-status" role="status"></p>
     <form id="bakeDiaryForm" class="bake-form hidden">
       <h3>Backversuch speichern</h3>
       <p class="muted">Passe die Werte an deinen tatsächlichen Backversuch an.</p>
@@ -104,8 +130,17 @@ body:has(#editor[open]){overflow:hidden}
       <textarea id="diaryNotes" maxlength="1000" placeholder="Kruste, Krume oder was du beim nächsten Mal ändern willst"></textarea>
       <button type="submit" class="primary">Backversuch speichern</button>
     </form>
-    <button type="button" id="bakeCancel" class="secondary">Backmodus beenden</button>
+      <details id="bakeSettings" class="bake-tools">
+        <summary>Backmodus-Einstellungen</summary>
+        <label class="display-toggle"><input id="bakeScreenOn" type="checkbox" aria-describedby="bakeScreenStatus"> Display eingeschaltet lassen</label>
+        <p class="muted display-status" id="bakeScreenStatus" role="status"></p>
+        <button type="button" id="bakeCancel" class="danger">Backmodus abbrechen</button>
+      </details>
+    </div>
+    <footer id="bakeActions" class="bake-actions hidden">
+      <div class="bake-actions-inner"><button type="button" id="completeBakeStep" class="primary"></button></div>
+    </footer>
   </div>
-</section>
+</dialog>
 <section id="settings"><div class="card"><h2>Import & Export</h2><p>Neue Rezepte als JSON importieren, aus einer passenden Rezeptdatei.</p><label for="importFile">JSON-Datei importieren</label><input type="file" id="importFile" accept=".json,application/json"><button class="primary" id="backupButton">Vollständiges Backup sichern</button><label for="restoreFile">Backup wiederherstellen</label><input type="file" id="restoreFile" accept=".json,application/json"><p class="muted">Wiederherstellung ersetzt deine eigenen Rezepte und Einstellungen sowie das Backtagebuch, wenn es in der Sicherung enthalten ist. Vorher wird automatisch eine Sicherheitskopie heruntergeladen.</p><button class="secondary" id="exportButton">Eigene Rezepte exportieren</button><button class="secondary" id="exampleButton">JSON-Beispiel exportieren</button><p id="importStatus" class="muted" role="status"></p><p id="backupStatus" class="muted" role="status"></p></div><div class="card"><h2>Datenschutz</h2><p>Rezepte und das Backtagebuch werden lokal im Browser auf diesem Gerät gespeichert. Es gibt keinen Server und keine Anmeldung. Sichere deine Rezepte regelmäßig mit der vollständigen Backup-Funktion, insbesondere vor dem Löschen von Safari-Websitedaten.</p><button class="danger" id="resetButton">Rezepte, Einstellungen und Backtagebuch zurücksetzen</button></div></section>
-</main><nav><button data-tab="calculator" class="active">⚖️<br>Rechner</button><button data-tab="library">📖<br>Rezepte</button><button data-tab="planner">🕒<br>Zeitplan</button><button data-tab="settings">⚙️<br>Import</button></nav><script src="app.js?v=1.1.8"></script></body></html>
+</main><nav><button data-tab="calculator" class="active">⚖️<br>Rechner</button><button data-tab="library">📖<br>Rezepte</button><button data-tab="planner">🕒<br>Zeitplan</button><button data-tab="settings">⚙️<br>Import</button></nav><script src="app.js?v=1.1.10"></script></body></html>

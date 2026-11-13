@@ -9,9 +9,9 @@ Die Dateien **aus diesem Ordner** direkt in das Hauptverzeichnis eines GitHub-Pa
 Unter **Import → Vollständiges Backup sichern** wird eine JSON-Datei mit eigenen Rezepten, Planer-Einstellungen und Backtagebuch heruntergeladen. Auf dem iPhone anschließend in **Dateien → iCloud Drive** speichern. Über **Backup wiederherstellen** wird die Sicherung eingelesen. Vor dem Ersetzen wird eine Sicherheitskopie zum Download angeboten. Die fünf Grundrezepte sind fest in der App und werden nicht gelöscht. Ein regelmäßiges Backup ist wichtig, da Browserdaten gelöscht werden können.
 
 ## Zeitplan
-Rezept auswählen; die hinterlegten Richtwerte werden geladen. Alle Zeiten können überschrieben werden. Vorheizen kann parallel zur Gare laufen. Mit **Backen starten** öffnest du den Backmodus. Er speichert deinen Fortschritt lokal und bietet am Ende einen textbasierten Tagebucheintrag an. Bei warmem Teig oder unterschiedlichen Gärzuständen Zeiten nach Bedarf korrigieren.
+Rezept auswählen; die hinterlegten Richtwerte werden geladen. Alle Zeiten können überschrieben werden. Vorheizen kann parallel zur Gare laufen. Mit **Backen starten** öffnest du den Backmodus aus dem Zeitplaner. Mit **Jetzt backen** im Rechner startest du sofort mit dem gewählten Rezept, der Stockgare, der Teigführung und der Hefe. Die übrigen Zeiten kommen aus den Rezeptvorgaben. Die Rezeptanleitung und die feste Schaltfläche für den aktuellen Schritt sind im Vollbild-Backmodus erreichbar. Das Vorheizen hat einen eigenen Status mit Richtzeit. Brotzeit speichert deinen Fortschritt lokal und bietet am Ende einen textbasierten Tagebucheintrag an. Bei warmem Teig oder unterschiedlichen Gärzuständen Zeiten nach Bedarf korrigieren.
 
 ## Nutzung und Rechte
 Es wurde bewusst keine Open-Source-Lizenz beigelegt. Für eigene rechtliche Hinweise und Veröffentlichungsbedingungen gegebenenfalls fachkundigen Rat einholen.
 
-Version 1.1.8
+Version 1.1.10
