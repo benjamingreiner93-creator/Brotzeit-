@@ -56,11 +56,26 @@ const num=(v,min,max)=>Math.min(max,Math.max(min,Number(v)||min));
 const fmt=v=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:v<10?2:0}).format(v);
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function validate(r){if(!r||typeof r.name!=='string'||!r.name.trim()||r.name.length>120||!Array.isArray(r.flours)||!r.flours.length||r.flours.length>20)throw Error('Ungültiger Rezeptname oder Mehlmischung');const sum=r.flours.reduce((a,x)=>{if(!x||typeof x.name!=='string'||!Number.isFinite(Number(x.pct))||Number(x.pct)<=0)throw Error('Ungültiger Mehlanteil');return a+Number(x.pct)},0);if(Math.abs(sum-100)>.05)throw Error('Mehlanteile müssen zusammen 100 % ergeben');for(const key of ['water','salt'])if(!Number.isFinite(Number(r[key]))||Number(r[key])<0||Number(r[key])>150)throw Error('Ungültiger Wert: '+key);if(!Array.isArray(r.extras)||r.extras.length>30||r.extras.some(x=>typeof x.name!=='string'||!Number.isFinite(Number(x.pct))||Number(x.pct)<0||Number(x.pct)>150))throw Error('Ungültige Zusatzzutaten');if(!Array.isArray(r.steps)||r.steps.length>50||r.steps.some(x=>typeof x!=='string'))throw Error('Ungültige Schritte');if(typeof r.bake!=='string')throw Error('Ungültiger Backhinweis');const flourGrams=recipeFlourGrams(r);if(!Number.isInteger(flourGrams)||flourGrams<100||flourGrams>10000)throw Error('Die Gesamtmehlmenge muss zwischen 100 und 10.000 g liegen.');const warmMinutes=Number(r.warmMinutes??0);if(!Number.isInteger(warmMinutes)||warmMinutes<0||warmMinutes>360)throw Error('Die Aufwärmzeit muss zwischen 0 und 360 Minuten liegen.');return {...r,flourGrams,warmMinutes,id:String(r.id||crypto.randomUUID()),name:r.name.trim(),flours:r.flours.map(x=>({name:String(x.name),pct:Number(x.pct)})),water:Number(r.water),salt:Number(r.salt),extras:r.extras.map(x=>({name:String(x.name),pct:Number(x.pct),...(x.unit==='ml'?{unit:'ml'}:{})}))};}
-function updateSelect(){const previous=$('recipeSelect').value;$('recipeSelect').innerHTML='';recipes.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.name;$('recipeSelect').append(o)});if(recipes.some(r=>r.id===previous))$('recipeSelect').value=previous;else resetHours();const previousPlan=$('planRecipe').value;syncPlannerSelect();if(previousPlan&&previousPlan!==$('planRecipe').value)planDefaults();else if(previous&&previous!==current().id){if(samePlan())$('hours').value=$('planRest').value;savePlannerSettings()}calculate();renderList()}
+function updateSelect(persist=true){const previous=$('recipeSelect').value;$('recipeSelect').innerHTML='';recipes.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.name;$('recipeSelect').append(o)});if(recipes.some(r=>r.id===previous))$('recipeSelect').value=previous;else resetHours();const previousPlan=$('planRecipe').value;syncPlannerSelect();if(persist&&previousPlan&&previousPlan!==$('planRecipe').value)planDefaults();else if(persist&&previous&&previous!==current().id){if(samePlan())$('hours').value=$('planRest').value;savePlannerSettings()}calculate();renderList()}
 function current(){return recipes.find(r=>r.id===$('recipeSelect').value)||recipes[0]}
+function estimateYeast(recipe,mode,hours,type){
+  const profile=fermentation(recipe.id,mode);
+  const dry=recipe.flourGrams/500*profile.dry*Math.pow(profile.hours/hours,mode==='cold'?.75:1.25);
+  return dry*(type==='fresh'?3:1);
+}
+function recipeIngredients(recipe){
+  const flour=recipe.flourGrams;
+  return [...recipe.flours.map(x=>[x.name,flour*x.pct/100]),['Wasser',flour*recipe.water/100,'ml'],
+    ['Salz',flour*recipe.salt/100],...recipe.extras.map(x=>[x.name,flour*x.pct/100,x.unit])];
+}
 function calculate(){const r=current();if(!r)return;const flour=r.flourGrams;
 $('flour').textContent=fmt(flour)+' g';
-const hours=num($('hours').value,2,72),cold=$('temperature').value==='cold';const profile=fermentation(r.id,$('temperature').value);const dry=flour/500*profile.dry*Math.pow(profile.hours/hours,cold?.75:1.25);const yeast=dry*($('yeastType').value==='fresh'?3:1);const entries=[...r.flours.map(x=>[x.name,flour*x.pct/100]),['Wasser',flour*r.water/100,'ml'],['Salz',flour*r.salt/100],...r.extras.map(x=>[x.name,flour*x.pct/100,x.unit]),[$('yeastType').value==='fresh'?'Frischhefe (Schätzwert)':'Trockenhefe (Schätzwert)',yeast]];$('ingredients').innerHTML=entries.map(([name,value,unit])=>`<div class="row"><span>${escapeHTML(name)}</span><strong>${formatAmount(value)} ${unit??'g'}</strong></div>`).join('');$('hydration').textContent=`Hydration: ${formatAmount(r.water)} % · Salz: ${formatAmount(r.salt)} %`; const stock=`${fmt(hours)} Std. ${cold?'bei 4–5 °C':'bei 20–22 °C'}`;
+const hours=num($('hours').value,2,72),mode=$('temperature').value,cold=mode==='cold';
+const profile=fermentation(r.id,mode);
+const yeastType=$('yeastType').value;
+const yeast=estimateYeast(r,mode,hours,yeastType);
+const entries=[...recipeIngredients(r),[yeastLabel(yeastType)+' (Schätzwert)',yeast]];
+$('ingredients').innerHTML=entries.map(([name,value,unit])=>`<div class="row"><span>${escapeHTML(name)}</span><strong>${formatAmount(value)} ${unit??'g'}</strong></div>`).join('');$('hydration').textContent=`Hydration: ${formatAmount(r.water)} % · Salz: ${formatAmount(r.salt)} %`; const stock=`${fmt(hours)} Std. ${cold?'bei 4–5 °C':'bei 20–22 °C'}`;
 const warm=cold?Number(r.warmMinutes)||0:0;
 const schedule=`${cold?minutesLabel(profile.start)+' bei Raumtemperatur vor der Kühlschrankgare · ':''}Stockgare: ${stock} · ${warm?minutesLabel(warm)+' vor dem Formen warmwerden lassen · ':''}Stückgare: ca. ${minutesLabel(profile.proof)} bei Raumtemperatur`;
 $('fermentationInfo').textContent=schedule;
@@ -73,8 +88,10 @@ function renderList(openId){
   $('recipeList').innerHTML=recipes.map(recipe=>{
     const id=escapeHTML(recipe.id);
     const isBase=baseIds.has(recipe.id);
+    const latest=baking.diary.find(entry=>entry.recipeId===recipe.id);
     return `<details class="recipe"${recipe.id===openId?' open':''}>
-      <summary><strong>${escapeHTML(recipe.name)}</strong><span class="muted">${formatAmount(recipe.flourGrams)} g Mehl · ${formatAmount(recipe.water)} % Hydration</span></summary>
+      <summary><strong>${escapeHTML(recipe.name)}</strong><span class="muted">${formatAmount(recipe.flourGrams)} g Mehl · ${formatAmount(recipe.water)} % Hydration</span>${latest?`<span class="muted">Zuletzt gebacken am ${diaryDate(latest)}</span>`:''}</summary>
+      ${latest?`<div class="bake-entry"><strong>Letzter Backversuch</strong><p class="muted">${escapeHTML(diarySummary(latest))}</p>${latest.notes?`<p>${escapeHTML(latest.notes)}</p>`:''}</div>`:''}
       <button class="secondary" data-use="${id}">Im Rechner öffnen</button>
       <button class="secondary" data-copy="${id}">Als eigenes Rezept kopieren</button>
       ${isBase?'':'<button class="secondary" data-edit="'+id+'">Bearbeiten</button><button class="danger" data-delete="'+id+'">Löschen</button>'}
@@ -315,10 +332,11 @@ function savePlannerSettings(){
   settings.hours=num($('hours').value,2,72);
   localStorage.setItem(backupKey,JSON.stringify(settings));
 }
-function plannerChanged(){
+function plannerChanged(persist=true){
+  plannedBake=null;
   $('planResult').classList.add('hidden');
   $('planStatus').textContent='';
-  savePlannerSettings();
+  if(persist!==false)savePlannerSettings();
 }
 function syncStockGare(source,target){
   const field=$(source);
@@ -327,10 +345,281 @@ function syncStockGare(source,target){
   if(samePlan())$(target).value=field.value;
 }
 function dateLocal(d){return d.toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})}
-function plan(){const end=new Date($('finishAt').value);if(isNaN(end.getTime())){plannerChanged();$('planStatus').textContent='Bitte eine gültige Fertigstellungszeit eingeben.';$('finishAt').focus();return}$('planStatus').textContent='';const cold=$('planTemperature').value==='cold';const bake=num($('planBake').value,5,180),proof=num($('planProof').value,0,360),rest=num($('planRest').value,2,72)*60,prep=num($('planPrep').value,0,180),warm=planWarmDefault()?num($('planWarm').value,0,360):0,startWarm=cold?num($('planStartWarm').value,0,240):0,preheat=num($('planPreheat').value,0,120);let t=end.getTime();const rows=[['Brot fertig',new Date(t)]];t-=bake*60000;const bakeStart=t;rows.push(['Backen beginnen',new Date(t)]);rows.push(['Ofen vorheizen (parallel zur letzten Gare)',new Date(bakeStart-preheat*60000)]);t-=proof*60000;rows.push(['Formen / Stückgare beginnen',new Date(t)]);t-=warm*60000;if(warm)rows.push(['Teig aus Kühlschrank nehmen / warmwerden lassen',new Date(t)]);t-=rest*60000;rows.push([cold?'Kühlschrankgare beginnen':'Stockgare beginnen',new Date(t)]);t-=startWarm*60000;if(startWarm)rows.push(['Teig bei Raumtemperatur anspringen lassen',new Date(t)]);t-=prep*60000;rows.push(['Zutaten vorbereiten',new Date(t)]);rows.sort((a,b)=>a[1]-b[1]);$('planResult').innerHTML='<h2>Dein Zeitplan</h2>'+rows.map(([s,d])=>`<div class="row"><span>${escapeHTML(s)}</span><strong>${dateLocal(d)}</strong></div>`).join('')+'<p class="muted">Ofenvorheizen läuft parallel zur letzten Gare. Zeitangaben sind Richtwerte – Volumen und Teigzustand entscheiden.</p>';$('planResult').classList.remove('hidden');savePlannerSettings()}
+const bakeStorageKey='brotzeit-baking';
+const emptyBaking=()=>({active:null,diary:[]});
+let baking=emptyBaking();
+try {
+  const stored=JSON.parse(localStorage.getItem(bakeStorageKey));
+  if(Array.isArray(stored?.diary)) baking=stored;
+} catch {}
+let plannedBake=null;
+
+function saveBaking(next){
+  localStorage.setItem(bakeStorageKey,JSON.stringify(next));
+  baking=next;
+}
+
+function buildBakePlan(end){
+  const recipe=recipes.find(item=>item.id===$('planRecipe').value);
+  const mode=$('planTemperature').value;
+  const cold=mode==='cold';
+  const bake=num($('planBake').value,5,180);
+  const proof=num($('planProof').value,0,360);
+  const stock=num($('planRest').value,2,72);
+  const warm=planWarmDefault()?num($('planWarm').value,0,360):0;
+  const startWarm=cold?num($('planStartWarm').value,0,240):0;
+  const preheat=num($('planPreheat').value,0,120);
+  const prep=num($('planPrep').value,0,180);
+  const finish=end.getTime();
+  const oven=finish-bake*60000;
+  const shape=oven-proof*60000;
+  const stockEnd=shape-warm*60000;
+  const stockStart=stockEnd-stock*3600000;
+  const mixing=stockStart-startWarm*60000;
+  const steps=[
+    {id:'prep',label:'Zutaten vorbereiten',at:mixing-prep*60000},
+    ...(startWarm?[{id:'mix',label:'Teig ansetzen und anspringen lassen',at:mixing}]:[]),
+    {id:'stock',label:cold?'Kühlschrankgare beginnen':'Stockgare beginnen',at:stockStart},
+    ...(warm?[{id:'warm',label:'Teig aus dem Kühlschrank nehmen',at:stockEnd}]:[]),
+    {id:'shape',label:'Formen und Stückgare beginnen',at:shape},
+    {id:'oven',label:'Backen beginnen',at:oven},
+    {id:'finish',label:'Brot fertig',at:finish}
+  ];
+  const yeastType=$('yeastType').value;
+  return {
+    id:crypto.randomUUID(),recipeId:recipe.id,recipeName:recipe.name,mode,stock,proof,yeastType,
+    yeast:Number(estimateYeast(recipe,mode,stock,yeastType).toFixed(2)),
+    ingredients:recipeIngredients(recipe),recipeSteps:recipe.steps,bakeHint:recipe.bake,
+    steps,preheat:preheat?{label:'Ofen vorheizen',at:oven-preheat*60000}:null,done:{}
+  };
+}
+
+function plan(){
+  const end=new Date($('finishAt').value);
+  if(!Number.isFinite(end.getTime())){
+    plannerChanged();
+    $('planStatus').textContent='Bitte eine gültige Fertigstellungszeit eingeben.';
+    $('finishAt').focus();
+    return;
+  }
+  $('planStatus').textContent='';
+  plannedBake=buildBakePlan(end);
+  const rows=[...plannedBake.steps,...(plannedBake.preheat?[plannedBake.preheat]:[])].sort((a,b)=>a.at-b.at);
+  $('planResult').innerHTML='<h2>Dein Zeitplan</h2>'+rows.map(({label,at})=>
+    `<div class="row"><span>${escapeHTML(label)}</span><strong>${dateLocal(new Date(at))}</strong></div>`
+  ).join('')+'<p class="muted">Das Vorheizen kann parallel zur Gare laufen. Entscheide nach Volumen und Teigzustand, wann es weitergeht.</p><button class="primary" id="startBake">Backen starten</button>';
+  $('startBake').onclick=startBake;
+  $('planResult').classList.remove('hidden');
+  savePlannerSettings();
+}
+
+function startBake(){
+  if(baking.active){
+    $('planStatus').textContent='Ein Backversuch läuft bereits. Du kannst unten weitermachen.';
+  }else if(plannedBake){
+    const active=clone(plannedBake);
+    const offset=Math.max(0,Date.now()-active.steps[0].at);
+    for(const step of active.steps)step.at+=offset;
+    if(active.preheat)active.preheat.at+=offset;
+    if(!updateActive(active))return;
+    if(offset)$('bakeStatus').textContent='Der Zeitplan wurde auf den Start ab jetzt verschoben.';
+  }
+  $('bakeTitle').focus();
+}
+
+function updateActive(active){
+  try{
+    saveBaking({...baking,active});
+  }catch{
+    const status=baking.active?$('bakeStatus'):$('planStatus');
+    status.textContent='Speichern fehlgeschlagen. Prüfe den verfügbaren Browserspeicher.';
+    return false;
+  }
+  $('bakeStatus').textContent='';
+  renderBake();
+  return true;
+}
+
+const currentBakeStep=active=>active.steps.find(step=>!Object.hasOwn(active.done,step.id));
+function bakeCheck(active,step){
+  if(step.id==='warm'||(step.id==='shape'&&!active.steps.some(item=>item.id==='warm'))){
+    return 'Prüfe, ob der Teig sichtbar an Volumen gewonnen hat und Blasen zeigt. Kalter Teig kann bei Bedarf bei Raumtemperatur weiterreifen.';
+  }
+  if(step.id==='shape'){
+    return 'Prüfe nach dem Warmwerden, ob der Teig luftig und gut formbar ist.';
+  }
+  if(step.id==='oven'){
+    return 'Bei vielen Weizenteigen federt eine leichte Fingerdelle langsam zurück, wenn der Laib backbereit ist. Prüfe auch, ob der Ofen aufgeheizt ist.';
+  }
+  return '';
+}
+function renderBake(){
+  const active=baking.active;
+  $('bakeSession').classList.toggle('hidden',!active);
+  $('resumeBake').classList.toggle('hidden',!active);
+  $('bakeDiaryForm').classList.add('hidden');
+  if(!active)return;
+  const step=currentBakeStep(active);
+  const action={shape:'Jetzt formen',warm:'Jetzt herausnehmen',oven:'Jetzt backen',finish:'Brot fertig'};
+  const check=step?bakeCheck(active,step):'';
+  const ovenPending=step&&active.preheat&&!Object.hasOwn(active.done,'preheat')
+    &&!Object.hasOwn(active.done,'oven');
+  $('bakeCancel').textContent=step?'Backmodus abbrechen':'Ohne Eintrag beenden';
+  $('bakeProgress').innerHTML=`
+    <p><strong>${escapeHTML(active.recipeName)}</strong> · ${modeLabel(active.mode)}</p>
+    ${step?`<div class="bake-current">
+      <h3 id="bakeStepTitle" tabindex="-1">${escapeHTML(step.label)}</h3>
+      <p>${dateLocal(new Date(step.at))} · <span id="bakeCountdown"></span></p>
+      ${check?`<p class="bake-check">${check} <a href="./backwissen.html#faq">Tipps zur Teigreife</a></p>`:''}
+      <button class="primary" id="completeBakeStep">${action[step.id]??'Jetzt erledigt'}</button>
+      <button class="secondary" id="delayBakeStep">${check?'30 Min. länger gehen lassen':'Restplan +30 Min.'}</button>
+    </div>`:'<p>Dein Brot ist fertig. Hier kannst du festhalten, wie es gelaufen ist.</p>'}
+    ${ovenPending?`<p class="muted">Ofen vorheizen · ${dateLocal(new Date(active.preheat.at))}</p>
+      <button class="secondary" id="completePreheat">Vorheizen gestartet</button>`:''}
+    ${step?`<details><summary>Gesamter Backplan</summary><ol class="bake-steps">${active.steps.map(item=>{
+      const done=active.done[item.id];
+      return `<li${done?' class="bake-done"':''}>${done?'✓ ':''}${escapeHTML(item.label)} · ${dateLocal(new Date(done??item.at))}</li>`;
+    }).join('')}</ol></details>
+    <details${step.id==='prep'?' open':''}><summary>Zutaten und Rezept</summary>
+      ${[...active.ingredients,[yeastLabel(active.yeastType)+' (Schätzwert)',active.yeast,'g']].map(([name,value,unit])=>
+        `<div class="row"><span>${escapeHTML(name)}</span><strong>${formatAmount(value)} ${unit??'g'}</strong></div>`).join('')}
+      <ol>${active.recipeSteps.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ol>
+      <p>${escapeHTML(active.bakeHint)}</p></details>`:''}`;
+  if(step){
+    $('completeBakeStep').onclick=()=>changeBakeProgress(step.id);
+    $('delayBakeStep').onclick=()=>changeBakeProgress(step.id,30);
+    if(ovenPending)$('completePreheat').onclick=()=>changeBakeProgress('preheat');
+    updateBakeCountdown();
+  }else{
+    fillDiaryForm(active);
+  }
+}
+
+function changeBakeProgress(id,delay=0){
+  const active=clone(baking.active);
+  const currentStep=currentBakeStep(active);
+  const now=Date.now();
+  const offset=delay?Math.max(0,now-currentStep.at)+delay*60000
+    : id===currentStep.id&&id!=='finish'?now-currentStep.at:0;
+  if(!delay)active.done[id]=now;
+  if(offset){
+    for(const step of active.steps){
+      if(!Object.hasOwn(active.done,step.id))step.at+=offset;
+    }
+    if(active.preheat&&!Object.hasOwn(active.done,'preheat'))active.preheat.at+=offset;
+  }
+  if(updateActive(active))($('bakeStepTitle')??$('diaryYeast')).focus();
+}
+
+function updateBakeCountdown(){
+  const countdown=$('bakeCountdown');
+  if(!countdown||!baking.active)return;
+  const at=currentBakeStep(baking.active)?.at;
+  if(at==null)return;
+  const minutes=Math.ceil((at-Date.now())/60000);
+  countdown.textContent=minutes>0?`in ${Math.floor(minutes/60)?Math.floor(minutes/60)+' Std. ':''}${minutes%60} Min.`:'jetzt fällig';
+}
+
+const yeastLabel=type=>type==='fresh'?'Frischhefe':'Trockenhefe';
+const modeLabel=mode=>mode==='cold'?'Kühlschrank':'Raumtemperatur';
+function fillDiaryForm(active){
+  const {done}=active;
+  const stockEnd=done.warm??done.shape;
+  $('bakeDiaryForm').reset();
+  $('diaryYeast').value=active.yeast;
+  $('diaryYeastType').value=active.yeastType;
+  $('diaryStock').value=stockEnd>done.stock?Number(((stockEnd-done.stock)/3600000).toFixed(2)):active.stock;
+  $('diaryProof').value=done.oven>done.shape?Math.round((done.oven-done.shape)/60000):active.proof;
+  $('bakeDiaryForm').classList.remove('hidden');
+}
+
+function diarySummary(entry){
+  const facts=[modeLabel(entry.mode)];
+  if(entry.stock!=null)facts.push(formatAmount(entry.stock)+' Std. Stockgare');
+  if(entry.proof!=null)facts.push(formatAmount(entry.proof)+' Min. Stückgare');
+  if(entry.yeast!=null)facts.push(formatAmount(entry.yeast)+' g '+yeastLabel(entry.yeastType));
+  if(entry.temperature!=null)facts.push(formatAmount(entry.temperature)+' °C Raumtemperatur');
+  return facts.join(' · ');
+}
+const diaryDate=entry=>new Date(entry.date).toLocaleDateString('de-DE',{dateStyle:'medium'});
+function renderDiary(){
+  $('diaryEntries').innerHTML=baking.diary.length?baking.diary.map(entry=>`
+    <div class="bake-entry">
+      <strong>${escapeHTML(entry.recipeName)} · ${diaryDate(entry)}</strong>
+      <p class="muted">${escapeHTML(diarySummary(entry))}</p>
+      ${entry.notes?`<p>${escapeHTML(entry.notes)}</p>`:''}
+      <button class="secondary" data-diary-delete="${escapeHTML(entry.id)}">Eintrag löschen</button>
+    </div>`).join(''):'<p class="muted">Hier erscheinen deine gespeicherten Backversuche.</p>';
+}
+function diaryNumber(id){
+  return $(id).value===''?null:$(id).valueAsNumber;
+}
+
+function validateDiary(entries){
+  if(!Array.isArray(entries))throw Error('Ungültiges Backtagebuch');
+  const ids=new Set();
+  return entries.map(entry=>{
+    const limits={stock:[0,999],proof:[0,59940],yeast:[0,10000],temperature:[-20,60]};
+    if(!entry||typeof entry.id!=='string'||!entry.id||ids.has(entry.id)
+      ||typeof entry.recipeId!=='string'||typeof entry.recipeName!=='string'||!entry.recipeName.trim()
+      ||entry.recipeName.length>120||typeof entry.notes!=='string'||entry.notes.length>1000
+      ||!Number.isFinite(entry.date)||!Number.isFinite(new Date(entry.date).getTime())
+      ||!['room','cold'].includes(entry.mode)||!['dry','fresh'].includes(entry.yeastType)
+      ||Object.entries(limits).some(([key,[min,max]])=>entry[key]!==null&&
+        (!Number.isFinite(entry[key])||entry[key]<min||entry[key]>max))){
+      throw Error('Ungültiger Backtagebucheintrag');
+    }
+    ids.add(entry.id);
+    const {id,recipeId,recipeName,date,mode,stock,proof,yeast,yeastType,temperature,notes}=entry;
+    return {id,recipeId,recipeName,date,mode,stock,proof,yeast,yeastType,temperature,notes};
+  }).sort((a,b)=>b.date-a.date);
+}
+
+$('bakeDiaryForm').onsubmit=event=>{
+  event.preventDefault();
+  const active=baking.active;
+  if(!active||currentBakeStep(active))return;
+  const {id,recipeId,recipeName,mode}=active;
+  const entry={id,recipeId,recipeName,mode,date:active.done.finish,yeastType:$('diaryYeastType').value,
+    yeast:diaryNumber('diaryYeast'),stock:diaryNumber('diaryStock'),proof:diaryNumber('diaryProof'),
+    temperature:diaryNumber('diaryTemperature'),notes:$('diaryNotes').value.trim()};
+  try{
+    const diary=validateDiary([entry,...baking.diary]);
+    saveBaking({active:null,diary});
+  }catch(error){
+    $('bakeStatus').textContent='Backversuch konnte nicht gespeichert werden: '+error.message;
+    return;
+  }
+  renderBake();
+  renderDiary();
+  renderList(recipeId);
+  document.querySelector('nav button[data-tab="library"]').click();
+  $('diaryStatus').textContent='Backversuch gespeichert.';
+};
+$('diaryEntries').onclick=event=>{
+  const id=event.target.closest('button[data-diary-delete]')?.dataset.diaryDelete;
+  if(!id||!confirm('Diesen Backversuch löschen?'))return;
+  try{
+    saveBaking({...baking,diary:baking.diary.filter(entry=>entry.id!==id)});
+  }catch{
+    $('diaryStatus').textContent='Der Eintrag konnte nicht gelöscht werden.';
+    return;
+  }
+  renderDiary();
+  renderList();
+  $('diaryStatus').textContent='Backversuch gelöscht.';
+};
+$('resumeBake').onclick=()=>$('bakeTitle').focus();
+$('bakeCancel').onclick=()=>{
+  if(!confirm('Diesen Backversuch ohne Tagebucheintrag beenden?'))return;
+  if(updateActive(null)){
+    $('planStatus').textContent='Backmodus beendet.';
+    $('planButton').focus();
+  }
+};
 
 for(const b of document.querySelectorAll('nav button'))b.addEventListener('click',()=>{document.querySelectorAll('section').forEach(s=>s.classList.toggle('active',s.id===b.dataset.tab));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));window.scrollTo(0,0)});
-$('yeastType').addEventListener('input',calculate);
+$('yeastType').addEventListener('input',()=>{calculate();plannerChanged()});
 $('recipeSelect').addEventListener('change',recipeSelectionChanged);
 function changeTemperature(mode){
   $('temperature').value=mode;
@@ -370,10 +659,81 @@ $('copyRecipe').onclick=async()=>{
   }
 };
 $('planButton').onclick=plan;$('planRecipe').onchange=() => planDefaults(true);$('planDefaults').onclick=() => planDefaults();for(const id of ['planBake','planPrep','planProof','planWarm','planStartWarm','planPreheat','finishAt'])$(id).addEventListener('input',plannerChanged);$('exportButton').onclick=()=>download('brotzeit-rezepte.json',{version:2,recipes:recipes.filter(r=>!baseIds.has(r.id))});
-function fullBackup(){let settings={};try{settings=JSON.parse(localStorage.getItem(backupKey)||'{}')}catch{}return{format:'brotzeit-backup',version:2,createdAt:new Date().toISOString(),recipes:clone(recipes.filter(r=>!baseIds.has(r.id))),settings}}
-$('backupButton').onclick=()=>{download('brotzeit-backup-'+new Date().toISOString().slice(0,10)+'.json',fullBackup());$('backupStatus').textContent='Backup heruntergeladen. Speichere die Datei in iCloud Drive oder einem anderen sicheren Ort.'};
-$('restoreFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>2*1024*1024)throw Error('Datei zu groß');const obj=JSON.parse(await file.text());if(obj.format!=='brotzeit-backup'||obj.version!==2||!Array.isArray(obj.recipes)||obj.recipes.length>500)throw Error('Keine gültige Brotzeit-Sicherungsdatei');const incoming=obj.recipes.map(validate);if(!obj.settings||typeof obj.settings!=='object'||Array.isArray(obj.settings))throw Error('Ungültige Einstellungen');if(!confirm('Die aktuellen eigenen Rezepte und Planer-Einstellungen werden ersetzt. Fortfahren?'))return;download('brotzeit-sicherung-vor-wiederherstellung.json',fullBackup());const ids=new Set(baseIds);for(const r of incoming){if(ids.has(r.id))r.id=crypto.randomUUID();ids.add(r.id)}recipes=[...clone(defaults),...incoming];save();updateSelect();localStorage.setItem(backupKey,JSON.stringify(obj.settings));restorePlannerSettings();$('backupStatus').textContent=`Backup wiederhergestellt: ${incoming.length} eigene Rezepte.`}catch(err){$('backupStatus').textContent='Wiederherstellung fehlgeschlagen: '+err.message}finally{e.target.value=''}};
-function restorePlannerSettings(){
+function fullBackup(){
+  let settings={};
+  try{settings=JSON.parse(localStorage.getItem(backupKey)||'{}')}catch{}
+  return {format:'brotzeit-backup',version:2,createdAt:new Date().toISOString(),
+    recipes:clone(recipes.filter(r=>!baseIds.has(r.id))),settings,diary:clone(baking.diary)};
+}
+$('backupButton').onclick=()=>{
+  download('brotzeit-backup-'+new Date().toISOString().slice(0,10)+'.json',fullBackup());
+  $('backupStatus').textContent='Backup heruntergeladen. Speichere die Datei in iCloud Drive oder an einem anderen sicheren Ort.';
+};
+$('restoreFile').onchange=async event=>{
+  const file=event.target.files?.[0];
+  if(!file)return;
+  try{
+    if(file.size>2*1024*1024)throw Error('Datei zu groß');
+    const backup=JSON.parse(await file.text());
+    if(backup.format!=='brotzeit-backup'||backup.version!==2||!Array.isArray(backup.recipes)||backup.recipes.length>500){
+      throw Error('Keine gültige Brotzeit-Sicherungsdatei');
+    }
+    if(!backup.settings||typeof backup.settings!=='object'||Array.isArray(backup.settings)){
+      throw Error('Ungültige Einstellungen');
+    }
+    const diary=validateDiary(backup.diary===undefined?baking.diary:backup.diary);
+    const incoming=backup.recipes.map(validate);
+    const ids=new Set(baseIds);
+    for(const recipe of incoming){
+      if(ids.has(recipe.id))recipe.id=crypto.randomUUID();
+      ids.add(recipe.id);
+    }
+    const diaryNotice=backup.diary===undefined?'Dein aktuelles Backtagebuch bleibt erhalten.':'Das Backtagebuch wird ersetzt.';
+    if(!confirm('Eigene Rezepte und Einstellungen werden ersetzt. '+diaryNotice+' Ein laufender Backmodus wird beendet. Fortfahren?'))return;
+    download('brotzeit-sicherung-vor-wiederherstellung.json',fullBackup());
+    const next=[...clone(defaults),...incoming];
+    replaceLocalData(next,backup.settings,diary);
+    $('backupStatus').textContent=`Backup wiederhergestellt: ${incoming.length} eigene Rezepte und ${diary.length} Backversuche.`;
+  }catch(error){
+    $('backupStatus').textContent='Wiederherstellung fehlgeschlagen: '+error.message;
+  }finally{
+    event.target.value='';
+  }
+};
+
+function replaceLocalData(nextRecipes,nextSettings,diary){
+  const keys=['brotzeit-recipes',backupKey,bakeStorageKey];
+  const previous=keys.map(key=>localStorage.getItem(key));
+  const nextBaking={active:null,diary};
+  const values=[nextRecipes,nextSettings,nextBaking].map(value=>value===null?null:JSON.stringify(value));
+  let written=0;
+  try{
+    for(const [index,key] of keys.entries()){
+      if(values[index]===null)localStorage.removeItem(key);
+      else localStorage.setItem(key,values[index]);
+      written++;
+    }
+  }catch(error){
+    for(let index=0;index<written;index++){
+      if(previous[index]===null)localStorage.removeItem(keys[index]);
+      else localStorage.setItem(keys[index],previous[index]);
+    }
+    throw error;
+  }
+  recipes=nextRecipes;
+  baking=nextBaking;
+  if(nextSettings===null){
+    $('finishAt').value=defaultFinishAt();
+    $('recipeSelect').value='';
+    $('planRecipe').value='';
+  }
+  updateSelect(false);
+  restorePlannerSettings(false);
+  renderBake();
+  renderDiary();
+}
+
+function restorePlannerSettings(persist=true){
   let settings;
   try{settings=JSON.parse(localStorage.getItem(backupKey)||'null')}catch{}
   const hasRecipe=id=>recipes.some(recipe=>recipe.id===id);
@@ -395,16 +755,43 @@ function restorePlannerSettings(){
   if(samePlan())$('hours').value=$('planRest').value;
   else if(settings?.hours!=null)$('hours').value=num(settings.hours,2,72);
   calculate();
-  plannerChanged();
+  plannerChanged(persist);
 }
 $('exampleButton').onclick=()=>download('brotzeit-beispiel.json',{version:1,recipes:[defaults[1]]});
 $('importFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>1024*1024)throw Error('Datei zu groß (max. 1 MB)');const parsed=JSON.parse(await file.text());const incoming=Array.isArray(parsed)?parsed:parsed.recipes;if(!Array.isArray(incoming)||!incoming.length||incoming.length>100)throw Error('Erwartet wird eine Liste mit 1–100 Rezepten');const valid=incoming.map(validate);for(const r of valid){const index=recipes.findIndex(x=>x.id===r.id);if(index>=0||baseIds.has(r.id)){r.id=crypto.randomUUID()}recipes.push(r)}save();updateSelect();$('importStatus').textContent=`${valid.length} Rezept(e) importiert.`}catch(err){$('importStatus').textContent='Import fehlgeschlagen: '+err.message}e.target.value=''};
-$('resetButton').onclick=()=>{if(confirm('Eigene Rezepte und Einstellungen löschen? Bitte vorher ein Backup erstellen.')){recipes=clone(defaults);localStorage.removeItem(backupKey);save();updateSelect();recipeSelectionChanged()}};
-const soon=new Date(Date.now()+24*3600000);soon.setMinutes(0,0,0);const pad=n=>String(n).padStart(2,'0');$('finishAt').value=`${soon.getFullYear()}-${pad(soon.getMonth()+1)}-${pad(soon.getDate())}T${pad(soon.getHours())}:${pad(soon.getMinutes())}`;
-updateSelect();restorePlannerSettings();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+$('resetButton').onclick=()=>{
+  if(!confirm('Eigene Rezepte, Einstellungen und Backtagebuch löschen? Bitte vorher ein Backup erstellen.'))return;
+  try{
+    replaceLocalData(clone(defaults),null,[]);
+    $('backupStatus').textContent='Brotzeit wurde zurückgesetzt.';
+  }catch(error){
+    $('backupStatus').textContent='Zurücksetzen fehlgeschlagen: '+error.message;
+  }
+};
+function defaultFinishAt(){
+  const soon=new Date(Date.now()+24*3600000);
+  soon.setMinutes(0,0,0);
+  const pad=n=>String(n).padStart(2,'0');
+  return `${soon.getFullYear()}-${pad(soon.getMonth()+1)}-${pad(soon.getDate())}T${pad(soon.getHours())}:${pad(soon.getMinutes())}`;
+}
+$('finishAt').value=defaultFinishAt();
+updateSelect();
+restorePlannerSettings();
+renderBake();
+renderDiary();
+setInterval(updateBakeCountdown,15000);
+document.addEventListener('visibilitychange',updateBakeCountdown);
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 const screenToggle=$('keepScreenOn');
 const screenStatus=$('screenStatus');
+const bakeScreenToggle=$('bakeScreenOn');
+const bakeScreenStatus=$('bakeScreenStatus');
+
+function setScreenStatus(message){
+  screenStatus.textContent=message;
+  bakeScreenStatus.textContent=message;
+}
 let screenLock=null;
 let screenLockPending=false;
 
@@ -412,7 +799,7 @@ async function syncScreenLock(){
   if(!screenToggle.checked || document.visibilityState!=='visible'){
     const lock=screenLock;
     screenLock=null;
-    if(!screenToggle.checked)screenStatus.textContent='';
+    if(!screenToggle.checked)setScreenStatus('');
     if(lock && !lock.released)await lock.release();
     return;
   }
@@ -426,22 +813,23 @@ async function syncScreenLock(){
       return;
     }
     if(lock.released){
-      screenStatus.textContent='Das Gerät hat die Displaysperre wieder aktiviert.';
+      setScreenStatus('Das Gerät hat die Displaysperre wieder aktiviert.');
       return;
     }
     screenLock=lock;
-    screenStatus.textContent='Das Display bleibt an, solange Brotzeit sichtbar ist.';
+    setScreenStatus('Das Display bleibt an, solange Brotzeit sichtbar ist.');
     lock.addEventListener('release',()=>{
       if(screenLock!==lock)return;
       screenLock=null;
       if(screenToggle.checked && document.visibilityState==='visible'){
-        screenStatus.textContent='Das Gerät hat die Displaysperre wieder aktiviert.';
+        setScreenStatus('Das Gerät hat die Displaysperre wieder aktiviert.');
       }
     },{once:true});
   }catch{
     if(screenToggle.checked && document.visibilityState==='visible'){
       screenToggle.checked=false;
-      screenStatus.textContent='Das Display konnte nicht eingeschaltet gehalten werden.';
+      bakeScreenToggle.checked=false;
+      setScreenStatus('Das Display konnte nicht eingeschaltet gehalten werden.');
     }
   }finally{
     screenLockPending=false;
@@ -450,9 +838,11 @@ async function syncScreenLock(){
 
 screenToggle.checked=false;
 if(typeof navigator.wakeLock?.request==='function'){
-  screenToggle.addEventListener('change',syncScreenLock);
+  screenToggle.addEventListener('change',()=>{bakeScreenToggle.checked=screenToggle.checked;syncScreenLock()});
+  bakeScreenToggle.addEventListener('change',()=>{screenToggle.checked=bakeScreenToggle.checked;syncScreenLock()});
   document.addEventListener('visibilitychange',syncScreenLock);
 }else{
   screenToggle.disabled=true;
-  screenStatus.textContent='Diese Option ist in diesem Browser nicht verfügbar.';
+  bakeScreenToggle.disabled=true;
+  setScreenStatus('Diese Option ist in diesem Browser nicht verfügbar.');
 }
