@@ -1,6 +1,6 @@
-const CACHE='brotzeit-v1.1.6';
+const CACHE='brotzeit-v1.1.6-backwissen';
 const SCRIPT='./app.js?v=1.1.6';
-const ASSETS=['./','./index.html',SCRIPT,'./manifest.webmanifest','./icon.png','./icon-512.png'];
+const ASSETS=['./','./index.html','./backwissen.html','./backwissen-brot.webp',SCRIPT,'./manifest.webmanifest','./icon.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#304b38">
+  <meta name="description" content="Die Brotzeit-Backschule für zu Hause. Lerne, wie Hefe, Teigführung, Wasser und Salz dein Brot verändern.">
+  <title>Backwissen – Brotzeit</title>
+  <link rel="icon" href="./icon.png">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f6f0;
+      --ink: #243328;
+      --green: #304b38;
+      --muted: #526355;
+      --line: #d8ddd3;
+      --serif: "Baskervville", Georgia, serif;
+      font-family: system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.65; }
+    a { color: inherit; }
+    a:focus-visible, summary:focus-visible { outline: 3px solid #896040; outline-offset: 4px; }
+    .wrap { width: min(100% - 2.5rem, 70rem); margin-inline: auto; }
+    .masthead { background: var(--green); color: white; }
+    .masthead .wrap, footer .wrap {
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      min-height: 4.25rem; padding-block: .6rem;
+    }
+    .brand { display: inline-flex; gap: .65rem; align-items: center; font-weight: 750; font-size: 1.1rem; text-decoration: none; }
+    .brand img { width: 2rem; height: 2rem; border-radius: .48rem; }
+    .back { display: inline-block; padding-block: .5rem; font-size: .92rem; text-underline-offset: .24em; }
+    .hero {
+      display: grid; grid-template-columns: 1fr 1fr; overflow: hidden;
+      margin-block: clamp(1.25rem, 4vw, 3rem) 1rem;
+      background: #ecece1; border-radius: 1.5rem;
+    }
+    .hero-copy { align-self: center; padding: clamp(1.55rem, 5vw, 4rem); }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2, h3 { line-height: 1.12; }
+    h1, h2 { font-family: var(--serif); font-weight: 500; }
+    h1 { font-size: clamp(2.65rem, 5.4vw, 4.8rem); letter-spacing: -.055em; margin-block: .55rem 1rem; }
+    h2 { font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -.035em; margin-bottom: .85rem; }
+    h3 { font-size: 1.22rem; margin-bottom: .5rem; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .15em; font-size: .73rem; font-weight: 750; color: var(--green); }
+    .hero-copy p:last-child { max-width: 34ch; color: var(--muted); }
+    .hero-image { position: relative; background: #9f7f60; min-height: 19rem; }
+    .hero-image img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .contents { display: flex; flex-wrap: wrap; gap: .5rem 1.6rem; border-bottom: 1px solid var(--line); padding-block: .4rem 1.15rem; }
+    .contents a { padding-block: .45rem; color: var(--green); font-weight: 650; font-size: .9rem; text-decoration-thickness: 1px; text-underline-offset: .25em; }
+    .block { padding-block: clamp(2rem, 6vw, 4.25rem); border-bottom: 1px solid var(--line); scroll-margin-top: 1rem; }
+    .section-intro { max-width: 72ch; }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+    .panel { background: #fffefa; border: 1px solid var(--line); border-radius: 1.15rem; padding: clamp(1.15rem, 3vw, 1.7rem); }
+    .compare .panel { border-top: 4px solid #a77a51; }
+    .compare .panel + .panel { border-top-color: #57715c; }
+    .compare .eyebrow { margin-bottom: .55rem; }
+    .panel p + p { margin-top: .65rem; }
+    .note { margin-top: 1rem; padding: 1rem 1.2rem; background: #e8eee6; border-radius: .85rem; }
+    .method { padding-left: 1.35rem; margin: .8rem 0 0; max-width: 72ch; }
+    .method li { margin-top: .4rem; padding-left: .2rem; }
+    .formula { display: block; margin-block: .85rem; background: #f1efe5; padding: .65rem .85rem; border-radius: .65rem; font-size: 1.05rem; }
+    details { border-top: 1px solid var(--line); }
+    details:first-of-type { margin-top: 1.2rem; }
+    summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: .85rem; padding-block: .9rem; font-weight: 700; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; flex: none; width: 1.6rem; height: 1.6rem; line-height: 1.55rem; text-align: center; border-radius: 50%; background: #e8eee6; color: var(--green); }
+    details[open] summary::after { content: "−"; }
+    details p { padding-bottom: 1rem; max-width: 76ch; color: var(--muted); }
+    footer { background: #ecece1; }
+    footer a { font-weight: 650; }
+    @media (max-width: 42rem) {
+      .wrap { width: calc(100% - 2rem); }
+      .hero, .pair { grid-template-columns: 1fr; }
+      .hero-image { min-height: clamp(11rem, 56vw, 17rem); }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="./icon.png" width="32" height="32" alt="">Brotzeit</a>
+      <a class="back" href="./">Zum Teigrechner</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Backwissen</p>
+        <h1>Gutes Brot beginnt beim Teig.</h1>
+        <p>Wie viel Hefe braucht dein Brot? Wann lohnt sich die Gare im Kühlschrank? Und was hilft, wenn der Teig an den Fingern klebt?</p>
+      </div>
+      <div class="hero-image"><img src="./backwissen-brot.webp" width="1200" height="800" alt="Angeschnittenes Brot mit kräftiger Kruste und luftiger Krume"></div>
+    </div>
+
+    <nav class="contents" aria-label="Auf dieser Seite">
+      <a href="#hefeteig">Hefeteig</a>
+      <a href="#teigfuehrung">Teigführung</a>
+      <a href="#no-knead">No-Knead</a>
+      <a href="#wasser-salz">Wasser &amp; Salz</a>
+      <a href="#faq">Häufige Fragen</a>
+    </nav>
+
+    <section class="block" id="hefeteig">
+      <h2>Wie Hefeteig aufgeht</h2>
+      <p class="section-intro">Hefe vergärt Zucker im Teig und bildet dabei Kohlendioxid. Im Weizenteig hält das Glutengerüst einen Teil dieses Gases fest. Der Teig gewinnt an Volumen, und aus den Gasblasen entstehen die Poren in der Krume.</p>
+      <div class="pair">
+        <div class="panel"><h3>Stockgare</h3><p>Der gesamte Teig ruht nach dem Mischen oder Kneten. Je nach Rezept kannst du ihn in dieser Phase dehnen und falten. Danach formst du den Laib.</p></div>
+        <div class="panel"><h3>Stückgare</h3><p>Der geformte Laib geht ein letztes Mal auf, bevor er in den Ofen kommt. Je nach Rezept kann die Stockgare oder die Stückgare im Kühlschrank stattfinden.</p></div>
+      </div>
+    </section>
+
+    <section class="block" id="teigfuehrung">
+      <h2>Auf der Arbeitsplatte oder im Kühlschrank?</h2>
+      <p class="section-intro">Hefemenge, Temperatur und Zeit bestimmen gemeinsam, wie schnell dein Teig reift. Die Temperaturen entsprechen den Richtwerten im Brotzeit-Teigrechner.</p>
+      <div class="pair compare">
+        <div class="panel">
+          <p class="eyebrow">20–22 °C als Richtwert</p>
+          <h3>Bei Raumtemperatur</h3>
+          <p>Praktisch, wenn du am selben Tag backen willst. Die Hefe arbeitet schneller als im Kühlschrank. Im Sommer kann dein Teig deshalb früher reif sein als im Rezept angegeben.</p>
+          <p><strong>Hefemenge:</strong> Für eine kurze Gehzeit braucht derselbe Teig meist mehr Hefe. Planst du mehr Zeit ein, kannst du auch bei Raumtemperatur mit wenig Hefe backen.</p>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">4–5 °C als Richtwert</p>
+          <h3>Im Kühlschrank</h3>
+          <p>Praktisch, wenn du abends vorbereitest und am nächsten Tag backst. Der Teig kühlt langsam ab und geht auch im Kühlschrank weiter auf. Die lange Gare gibt ihm Zeit, Aroma zu entwickeln.</p>
+          <p><strong>Hefemenge:</strong> Bei einer langen Kühlschrankgare reicht oft weniger Hefe als bei einem schnellen Rezept. Die tatsächliche Kühlschranktemperatur und die Temperatur des Teigs beim Einstellen machen einen Unterschied.</p>
+        </div>
+      </div>
+      <p class="note"><strong>Für die Übernachtgare:</strong> Passe Hefemenge und Gehzeit gemeinsam an. Stell den Teig abgedeckt kalt. Hat er morgens erst wenig Volumen gewonnen, kann er bei Raumtemperatur weiterreifen.</p>
+      <p class="note"><strong>Hefe umrechnen:</strong> 3 g Frischhefe entsprechen ungefähr 1 g Trockenhefe. Kleine Mengen lassen sich mit einer Feinwaage genauer abwiegen.</p>
+    </section>
+
+    <section class="block" id="no-knead">
+      <h2>No-Knead – Brot ohne Kneten</h2>
+      <p class="section-intro">Für ein No-Knead-Brot genügt es, die Zutaten gründlich zu mischen. Während der Ruhe nimmt das Mehl Wasser auf und in Weizenteigen entwickelt sich das Glutengerüst. Das funktioniert bei Raumtemperatur und mit Kühlschrankgare.</p>
+      <ol class="method">
+        <li><strong>Mischen.</strong> Rühre, bis keine trockenen Mehlnester mehr zu sehen sind.</li>
+        <li><strong>Ruhen lassen.</strong> Decke den Teig ab und gib ihm die im Rezept vorgesehene Zeit.</li>
+        <li><strong>Bei Bedarf falten.</strong> Zieh während der Stockgare eine Teigseite hoch und leg sie zur Mitte. Wiederhole das von den anderen Seiten. Das gibt einem weichen Weizenteig mehr Halt.</li>
+      </ol>
+    </section>
+
+    <section class="block" id="wasser-salz">
+      <h2>Was Wasser und Salz verändern</h2>
+      <div class="pair">
+        <div class="panel">
+          <h3>Hydration</h3>
+          <p>Die Hydration ist das Verhältnis von Wasser zu Mehl. Bei einer Mehlmischung zählt die gesamte Mehlmenge. Mehl und Wasser aus einem Vorteig rechnest du mit ein.</p>
+          <strong class="formula">350 ml Wasser bei 500 g Mehl ≈ 70 %</strong>
+          <p>Mehr Wasser macht Weizenteig meist weicher und klebriger. Wenn Struktur und Gare passen, kann die Krume offener werden. Vollkornmehl bindet oft mehr Wasser als helles Mehl. Deshalb können sich zwei Teige mit 70 % Hydration ganz unterschiedlich anfühlen.</p>
+        </div>
+        <div class="panel">
+          <h3>Salzanteil</h3>
+          <p>Salz gibt Geschmack, stärkt in Weizenteigen das Glutengerüst und bremst die Hefe etwas. Wie bei der Hydration bezieht sich die Prozentangabe auf das Mehlgewicht.</p>
+          <strong class="formula">10 g Salz bei 500 g Mehl = 2 %</strong>
+          <p>Rund 2 % sind für viele Brote ein üblicher Wert. Wieg das Salz ab. Ein Teelöffel feines Salz kann anders wiegen als ein Teelöffel grobes Salz.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="faq">
+      <h2>Wenn der Teig Probleme macht</h2>
+      <details>
+        <summary>Warum klebt mein Teig so sehr?</summary>
+        <p>Teige mit viel Wasser kleben stärker. Gib frisch gemischtem Teig etwas Ruhe, damit das Mehl Wasser aufnehmen kann. Leicht angefeuchtete Hände und eine Teigkarte helfen beim Falten. Viel zusätzliches Mehl senkt die Hydration und verändert die Krume. Roggenteig bleibt von Natur aus klebrig. Feuchte Hände oder eine Kastenform erleichtern die Verarbeitung.</p>
+      </details>
+      <details>
+        <summary>Warum geht mein Teig kaum auf?</summary>
+        <p>Wenn der Teig noch kühl ist, gib ihm abgedeckt mehr Zeit bei Raumtemperatur. Schau nach kleinen Blasen und einer sichtbaren Volumenzunahme. Bleibt er über längere Zeit unverändert, prüfe beim nächsten Ansatz Hefemenge und Frische der Hefe. Sehr heißes Wasser kann die Hefe schädigen.</p>
+      </details>
+      <details>
+        <summary>Muss sich der Teig verdoppeln?</summary>
+        <p>Orientiere dich an der Volumenzunahme im Rezept. Für die Stockgare hilft ein Behälter mit geraden Wänden, an dem du die Anfangshöhe markierst. Bei der Stückgare vieler Weizenteige gibt eine leichte Fingerdelle einen Anhaltspunkt. Springt sie sofort zurück, braucht der Laib meist noch Zeit. Kommt sie langsam zurück, ist er oft backbereit. Bei sehr kalten oder sehr weichen Teigen ist dieser Test weniger aussagekräftig.</p>
+      </details>
+      <details>
+        <summary>Warum läuft mein Laib auseinander?</summary>
+        <p>Weicher Weizenteig kann zu wenig Struktur haben. Dehnen und Falten während der Stockgare und etwas Spannung beim Formen helfen. Fällt der Laib nach deutlichem Aufgehen bei leichter Berührung zusammen, kann die Stückgare zu lang gewesen sein. Eine Kastenform gibt sehr weichen Teigen Halt.</p>
+      </details>
+      <details>
+        <summary>Warum ist mein Brot innen dicht oder klitschig?</summary>
+        <p>Eine dichte Krume kann darauf hindeuten, dass der Teig vor dem Backen zu wenig aufgegangen ist. War der Laib erst luftig und ist dann eingesackt, kann auch Übergare die Ursache sein. Bei einer klitschigen Krume wurde das Brot möglicherweise zu kurz gebacken oder zu warm angeschnitten. Lass es auf einem Gitter vollständig auskühlen.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><span>Brotzeit</span><a class="back" href="./">Zum Teigrechner</a></div>
+  </footer>
+</body>
+</html>
