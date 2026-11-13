@@ -1,5 +1,5 @@
-const CACHE='brotzeit-v1.1.5';
-const SCRIPT='./app.js?v=1.1.5';
+const CACHE='brotzeit-v1.1.6';
+const SCRIPT='./app.js?v=1.1.6';
 const ASSETS=['./','./index.html',SCRIPT,'./manifest.webmanifest','./icon.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{

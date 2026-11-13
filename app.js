@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 const defaults=[
 {id:'ciabatta',name:'Ciabatta',flourGrams:500,flours:[{name:'Weizenmehl Type 550',pct:100}],water:75,salt:2,extras:[],steps:['Zutaten vermischen und 20 Minuten ruhen lassen.','5–8 Minuten langsam kneten. Während der ersten 90 Minuten der warmen Teigruhe dreimal im Abstand von 30 Minuten dehnen und falten.','Die Stockgare abgedeckt fortsetzen. Der Teig soll sichtbar aufgehen und Blasen zeigen.','Teig vorsichtig auf eine bemehlte Fläche geben, teilen und möglichst wenig entgasen.','Bis zur passenden Stückgare ruhen lassen und heiß mit Dampf backen.'],bake:'240 °C, etwa 20–25 Minuten'},
-{id:'focaccia',name:'Focaccia',flourGrams:500,flours:[{name:'Weizenmehl Type 550',pct:100}],water:80,salt:2,extras:[{name:'Olivenöl im Teig',pct:4}],steps:['Zutaten vermischen; das Olivenöl zuletzt einarbeiten.','Während der ersten 90 Minuten der warmen Teigruhe dreimal im Abstand von 30 Minuten dehnen und falten.','Die Stockgare abgedeckt fortsetzen. Der Teig soll luftig werden und sichtbar aufgehen.','In eine großzügig geölte Form geben und behutsam ausziehen.','Gut aufgehen lassen, mit geölten Fingern Vertiefungen eindrücken und mit Olivenöl, Rosmarin und grobem Salz belegen.'],bake:'230 °C Ober-/Unterhitze, etwa 20–30 Minuten'},
+{id:'focaccia',name:'Focaccia',flourGrams:500,flours:[{name:'Weizenmehl Type 550',pct:100}],water:80,salt:2,extras:[{name:'Olivenöl im Teig',pct:4/0.92,unit:'ml'}],steps:['Zutaten vermischen; das Olivenöl zuletzt einarbeiten.','Während der ersten 90 Minuten der warmen Teigruhe dreimal im Abstand von 30 Minuten dehnen und falten.','Die Stockgare abgedeckt fortsetzen. Der Teig soll luftig werden und sichtbar aufgehen.','In eine großzügig geölte Form geben und behutsam ausziehen.','Gut aufgehen lassen, mit geölten Fingern Vertiefungen eindrücken und mit Olivenöl, Rosmarin und grobem Salz belegen.'],bake:'230 °C Ober-/Unterhitze, etwa 20–30 Minuten'},
 {id:'italian',name:'Italienisches Landbrot',flourGrams:500,flours:[{name:'Weizenmehl Type 550',pct:100}],water:70,salt:2,extras:[],steps:['Zutaten mischen und 20 Minuten ruhen lassen.','6–8 Minuten kneten. Während der ersten Stunde der warmen Teigruhe nach 30 und 60 Minuten dehnen und falten.','Abgedeckt reifen lassen.','Schonend rund formen und bis zur passenden Stückgare gehen lassen.','Mit Dampf anbacken.'],bake:'240 °C anbacken, dann 210 °C, insgesamt 35–45 Minuten'},
 {id:'wheat',name:'Weizenbrot',flourGrams:500,flours:[{name:'Weizenmehl Type 550',pct:100}],water:68,salt:2,extras:[],steps:['Zutaten gründlich vermischen.','8–10 Minuten kneten, bis ein elastischer Teig entsteht.','Abgedeckt reifen lassen.','Formen und zur passenden Stückgare bringen.','Mit Dampf backen.'],bake:'230 °C anbacken, dann 200 °C, insgesamt 35–45 Minuten'},
 {id:'mixed',name:'Weizen-Roggen-Mischbrot',flourGrams:500,flours:[{name:'Weizenmehl Type 550',pct:70},{name:'Roggenmehl Type 1150',pct:30}],water:70,salt:2,extras:[],steps:['Alle Zutaten gründlich mischen.','Etwa 5–7 Minuten langsam kneten.','Abgedeckt reifen lassen.','Mit leicht bemehlten Händen formen und zur Stückgare bringen.','Mit Dampf backen. Hinweis: Ohne Sauerteig ist das kein klassisch gesäuertes Roggenmischbrot.'],bake:'240 °C anbacken, dann 200 °C, insgesamt 40–50 Minuten'}];
@@ -50,25 +50,234 @@ function recipeSelectionChanged(){
 const clone=x=>JSON.parse(JSON.stringify(x));
 let recipes;try{const v=JSON.parse(localStorage.getItem('brotzeit-recipes'));recipes=Array.isArray(v)?v:clone(defaults)}catch{recipes=clone(defaults)}
 const normalizeLibrary=()=>{const extras=recipes.filter(r=>r&&!baseIds.has(r.id)).map(r=>({...r,flourGrams:recipeFlourGrams(r)}));recipes=[...clone(defaults),...extras]};normalizeLibrary();
-const save=()=>localStorage.setItem('brotzeit-recipes',JSON.stringify(recipes));
+const save=(nextRecipes=recipes)=>localStorage.setItem('brotzeit-recipes',JSON.stringify(nextRecipes));
 const backupKey='brotzeit-settings';
 const num=(v,min,max)=>Math.min(max,Math.max(min,Number(v)||min));
 const fmt=v=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:v<10?2:0}).format(v);
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function validate(r){if(!r||typeof r.name!=='string'||!r.name.trim()||r.name.length>120||!Array.isArray(r.flours)||!r.flours.length||r.flours.length>20)throw Error('Ungültiger Rezeptname oder Mehlmischung');const sum=r.flours.reduce((a,x)=>{if(!x||typeof x.name!=='string'||!Number.isFinite(Number(x.pct))||Number(x.pct)<=0)throw Error('Ungültiger Mehlanteil');return a+Number(x.pct)},0);if(Math.abs(sum-100)>.05)throw Error('Mehlanteile müssen zusammen 100 % ergeben');for(const key of ['water','salt'])if(!Number.isFinite(Number(r[key]))||Number(r[key])<0||Number(r[key])>150)throw Error('Ungültiger Wert: '+key);if(!Array.isArray(r.extras)||r.extras.length>30||r.extras.some(x=>typeof x.name!=='string'||!Number.isFinite(Number(x.pct))||Number(x.pct)<0||Number(x.pct)>150))throw Error('Ungültige Zusatzzutaten');if(!Array.isArray(r.steps)||r.steps.length>50||r.steps.some(x=>typeof x!=='string'))throw Error('Ungültige Schritte');if(typeof r.bake!=='string')throw Error('Ungültiger Backhinweis');const flourGrams=recipeFlourGrams(r);if(!Number.isInteger(flourGrams)||flourGrams<100||flourGrams>10000)throw Error('Die Gesamtmehlmenge muss zwischen 100 und 10.000 g liegen.');const warmMinutes=Number(r.warmMinutes??0);if(!Number.isInteger(warmMinutes)||warmMinutes<0||warmMinutes>360)throw Error('Die Aufwärmzeit muss zwischen 0 und 360 Minuten liegen.');return {...r,flourGrams,warmMinutes,id:String(r.id||crypto.randomUUID()),name:r.name.trim(),flours:r.flours.map(x=>({name:String(x.name),pct:Number(x.pct)})),water:Number(r.water),salt:Number(r.salt),extras:r.extras.map(x=>({name:String(x.name),pct:Number(x.pct)}))};}
+function validate(r){if(!r||typeof r.name!=='string'||!r.name.trim()||r.name.length>120||!Array.isArray(r.flours)||!r.flours.length||r.flours.length>20)throw Error('Ungültiger Rezeptname oder Mehlmischung');const sum=r.flours.reduce((a,x)=>{if(!x||typeof x.name!=='string'||!Number.isFinite(Number(x.pct))||Number(x.pct)<=0)throw Error('Ungültiger Mehlanteil');return a+Number(x.pct)},0);if(Math.abs(sum-100)>.05)throw Error('Mehlanteile müssen zusammen 100 % ergeben');for(const key of ['water','salt'])if(!Number.isFinite(Number(r[key]))||Number(r[key])<0||Number(r[key])>150)throw Error('Ungültiger Wert: '+key);if(!Array.isArray(r.extras)||r.extras.length>30||r.extras.some(x=>typeof x.name!=='string'||!Number.isFinite(Number(x.pct))||Number(x.pct)<0||Number(x.pct)>150))throw Error('Ungültige Zusatzzutaten');if(!Array.isArray(r.steps)||r.steps.length>50||r.steps.some(x=>typeof x!=='string'))throw Error('Ungültige Schritte');if(typeof r.bake!=='string')throw Error('Ungültiger Backhinweis');const flourGrams=recipeFlourGrams(r);if(!Number.isInteger(flourGrams)||flourGrams<100||flourGrams>10000)throw Error('Die Gesamtmehlmenge muss zwischen 100 und 10.000 g liegen.');const warmMinutes=Number(r.warmMinutes??0);if(!Number.isInteger(warmMinutes)||warmMinutes<0||warmMinutes>360)throw Error('Die Aufwärmzeit muss zwischen 0 und 360 Minuten liegen.');return {...r,flourGrams,warmMinutes,id:String(r.id||crypto.randomUUID()),name:r.name.trim(),flours:r.flours.map(x=>({name:String(x.name),pct:Number(x.pct)})),water:Number(r.water),salt:Number(r.salt),extras:r.extras.map(x=>({name:String(x.name),pct:Number(x.pct),...(x.unit==='ml'?{unit:'ml'}:{})}))};}
 function updateSelect(){const previous=$('recipeSelect').value;$('recipeSelect').innerHTML='';recipes.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.name;$('recipeSelect').append(o)});if(recipes.some(r=>r.id===previous))$('recipeSelect').value=previous;else resetHours();const previousPlan=$('planRecipe').value;syncPlannerSelect();if(previousPlan&&previousPlan!==$('planRecipe').value)planDefaults();else if(previous&&previous!==current().id){if(samePlan())$('hours').value=$('planRest').value;savePlannerSettings()}calculate();renderList()}
 function current(){return recipes.find(r=>r.id===$('recipeSelect').value)||recipes[0]}
 function calculate(){const r=current();if(!r)return;const flour=r.flourGrams;
 $('flour').textContent=fmt(flour)+' g';
-const hours=num($('hours').value,2,72),cold=$('temperature').value==='cold';const profile=fermentation(r.id,$('temperature').value);const dry=flour/500*profile.dry*Math.pow(profile.hours/hours,cold?.75:1.25);const yeast=dry*($('yeastType').value==='fresh'?3:1);const entries=[...r.flours.map(x=>[x.name,flour*x.pct/100]),['Wasser',flour*r.water/100],['Salz',flour*r.salt/100],...r.extras.map(x=>[x.name,flour*x.pct/100]),[$('yeastType').value==='fresh'?'Frischhefe (Schätzwert)':'Trockenhefe (Schätzwert)',yeast]];$('ingredients').innerHTML=entries.map(([name,value])=>`<div class="row"><span>${escapeHTML(name)}</span><strong>${fmt(value)} g</strong></div>`).join('');$('hydration').textContent=`Hydration: ${r.water} % · Salz: ${r.salt} %`; const stock=`${fmt(hours)} Std. ${cold?'bei 4–5 °C':'bei 20–22 °C'}`;
+const hours=num($('hours').value,2,72),cold=$('temperature').value==='cold';const profile=fermentation(r.id,$('temperature').value);const dry=flour/500*profile.dry*Math.pow(profile.hours/hours,cold?.75:1.25);const yeast=dry*($('yeastType').value==='fresh'?3:1);const entries=[...r.flours.map(x=>[x.name,flour*x.pct/100]),['Wasser',flour*r.water/100,'ml'],['Salz',flour*r.salt/100],...r.extras.map(x=>[x.name,flour*x.pct/100,x.unit]),[$('yeastType').value==='fresh'?'Frischhefe (Schätzwert)':'Trockenhefe (Schätzwert)',yeast]];$('ingredients').innerHTML=entries.map(([name,value,unit])=>`<div class="row"><span>${escapeHTML(name)}</span><strong>${formatAmount(value)} ${unit??'g'}</strong></div>`).join('');$('hydration').textContent=`Hydration: ${formatAmount(r.water)} % · Salz: ${formatAmount(r.salt)} %`; const stock=`${fmt(hours)} Std. ${cold?'bei 4–5 °C':'bei 20–22 °C'}`;
 const warm=cold?Number(r.warmMinutes)||0:0;
 const schedule=`${cold?minutesLabel(profile.start)+' bei Raumtemperatur vor der Kühlschrankgare · ':''}Stockgare: ${stock} · ${warm?minutesLabel(warm)+' vor dem Formen warmwerden lassen · ':''}Stückgare: ca. ${minutesLabel(profile.proof)} bei Raumtemperatur`;
 $('fermentationInfo').textContent=schedule;
-$('steps').innerHTML=r.steps.map(s=>`<li>${escapeHTML(s)}</li>`).join('');$('bakeInfo').textContent='Backen: '+r.bake;window.lastRecipeText=`${r.name}\n`+entries.map(x=>`${x[0]}: ${fmt(x[1])} g`).join('\n')+`\n${schedule}\n`+r.steps.map((s,i)=>`${i+1}. ${s}`).join('\n')+`\nBacken: ${r.bake}\nHefemenge nur als Richtwert.`}
-function renderList(){$('recipeList').innerHTML=recipes.map(r=>`<div class="recipe"><strong>${escapeHTML(r.name)}</strong><div class="muted">${r.water} % Wasser · ${r.flours.length} Mehlsorte(n)</div><button class="secondary" data-use="${escapeHTML(r.id)}">Berechnen</button>${baseIds.has(r.id)?'<span class="pill">Grundrezept · geschützt</span>':`<button class="secondary" data-edit="${escapeHTML(r.id)}">Bearbeiten</button><button class="danger" data-delete="${escapeHTML(r.id)}">Löschen</button>`}</div>`).join('')}
-function openEditor(id){if(baseIds.has(id)){alert('Grundrezepte sind geschützt. Du kannst eine eigene Variante importieren oder anlegen.');return}const r=recipes.find(x=>x.id===id);$('editor').classList.remove('hidden');$('editorTitle').textContent=r?'Rezept bearbeiten':'Neues Rezept';$('editId').value=r?.id||'';$('editName').value=r?.name||'';$('editFlourGrams').value=r?.flourGrams??defaultFlourGrams;$('editFlourGrams').readOnly=Boolean(r);$('editFlours').value=r?.flours.map(x=>`${x.name}|${x.pct}`).join('\n')||'Weizenmehl Type 550|100';$('editWater').value=r?.water??70;$('editSalt').value=r?.salt??2;$('editExtras').value=r?.extras.map(x=>`${x.name}|${x.pct}`).join('\n')||'';$('editSteps').value=r?.steps.join('\n')||'';$('editBake').value=r?.bake||'';$('editWarmMinutes').value=r?.warmMinutes??0;$('editor').scrollIntoView({behavior:'smooth'})}
-function parseLines(v){return v.split('\n').filter(x=>x.trim()).map(line=>{const i=line.lastIndexOf('|');if(i<1)throw Error('Format: Name|Prozent');return{name:line.slice(0,i).trim(),pct:Number(line.slice(i+1).trim().replace(',','.'))}})}
-function saveEditor(){try{if(baseIds.has($('editId').value))throw Error('Grundrezepte sind geschützt');const id=$('editId').value||crypto.randomUUID();const existing=recipes.find(recipe=>recipe.id===id);const r=validate({id,flourGrams:existing?.flourGrams??Number($('editFlourGrams').value),name:$('editName').value,flours:parseLines($('editFlours').value),water:Number($('editWater').value),salt:Number($('editSalt').value),extras:parseLines($('editExtras').value),steps:$('editSteps').value.split('\n').map(x=>x.trim()).filter(Boolean),bake:$('editBake').value,warmMinutes:$('editWarmMinutes').value});const i=recipes.findIndex(x=>x.id===id);if(i>=0)recipes[i]=r;else recipes.push(r);save();$('editor').classList.add('hidden');updateSelect();$('recipeSelect').value=id;recipeSelectionChanged()}catch(e){alert(e.message)}}
+$('steps').innerHTML=r.steps.map(s=>`<li>${escapeHTML(s)}</li>`).join('');$('bakeInfo').textContent='Backen: '+r.bake;window.lastRecipeText=`${r.name}\n`+entries.map(x=>`${x[0]}: ${formatAmount(x[1])} ${x[2]??'g'}`).join('\n')+`\n${schedule}\n`+r.steps.map((s,i)=>`${i+1}. ${s}`).join('\n')+`\nBacken: ${r.bake}\nHefemenge nur als Richtwert.`}
+const amountLabel=new Intl.NumberFormat('de-DE',{maximumFractionDigits:2});
+const formatAmount=value=>amountLabel.format(value);
+const amountFromPercent=(flour,pct)=>Number((flour*pct/100).toPrecision(14));
+
+function renderList(openId){
+  $('recipeList').innerHTML=recipes.map(recipe=>{
+    const id=escapeHTML(recipe.id);
+    const isBase=baseIds.has(recipe.id);
+    return `<details class="recipe"${recipe.id===openId?' open':''}>
+      <summary><strong>${escapeHTML(recipe.name)}</strong><span class="muted">${formatAmount(recipe.flourGrams)} g Mehl · ${formatAmount(recipe.water)} % Hydration</span></summary>
+      <button class="secondary" data-use="${id}">Im Rechner öffnen</button>
+      <button class="secondary" data-copy="${id}">Als eigenes Rezept kopieren</button>
+      ${isBase?'':'<button class="secondary" data-edit="'+id+'">Bearbeiten</button><button class="danger" data-delete="'+id+'">Löschen</button>'}
+    </details>`;
+  }).join('');
+}
+
+let editingRecipe=null;
+let editorReturnFocus=null;
+
+function addIngredient(list,name='',amount='',unit='g'){
+  const row=document.createElement('div');
+  const extra=list.id==='editExtras';
+  row.className=extra?'ingredient-row has-unit':'ingredient-row';
+  row.innerHTML=`
+    <label>${extra?'Zutat':'Mehlsorte'}<input data-name required></label>
+    <label>${extra?'Menge':'Menge (g)'}<input data-amount required type="number" min="0" step="any" inputmode="decimal"></label>
+    ${extra?'<label>Einheit<select data-unit><option value="g">g</option><option value="ml">ml</option></select></label>':''}
+    <button type="button" class="editor-row-button" data-remove aria-label="${extra?'Zutat':'Mehlsorte'} entfernen">×</button>`;
+  row.querySelector('[data-name]').value=name;
+  row.querySelector('[data-amount]').value=amount;
+  if(extra)row.querySelector('[data-unit]').value=unit;
+  list.append(row);
+  return row.querySelector('[data-name]');
+}
+
+function fitStep(textarea){
+  textarea.style.height='auto';
+  textarea.style.height=textarea.scrollHeight+2+'px';
+}
+
+function updateStepControls(){
+  const steps=Array.from($('editSteps').children);
+  steps.forEach((step,index)=>{
+    step.querySelector('textarea').setAttribute('aria-label',`Schritt ${index+1}`);
+    step.querySelector('[data-up]').disabled=index===0;
+    step.querySelector('[data-down]').disabled=index===steps.length-1;
+  });
+}
+
+function addStep(text=''){
+  const step=document.createElement('li');
+  step.innerHTML=`<textarea rows="2" required></textarea>
+    <button type="button" class="editor-row-button" data-up aria-label="Schritt nach oben">↑</button>
+    <button type="button" class="editor-row-button" data-down aria-label="Schritt nach unten">↓</button>
+    <button type="button" class="editor-row-button" data-remove aria-label="Schritt entfernen">×</button>`;
+  const textarea=step.querySelector('textarea');
+  textarea.value=text;
+  $('editSteps').append(step);
+  return textarea;
+}
+
+function readIngredients(id){
+  return Array.from($(id).children,row=>({
+    name:row.querySelector('[data-name]').value.trim(),
+    amount:row.querySelector('[data-amount]').valueAsNumber,
+    unit:row.querySelector('[data-unit]')?.value??'g'
+  }));
+}
+const totalFlour=rows=>rows.reduce((sum,row)=>sum+(row.amount||0),0);
+
+function updateEditorTotals(){
+  const flour=totalFlour(readIngredients('editFlours'));
+  const water=$('editWater').valueAsNumber;
+  const salt=$('editSalt').valueAsNumber;
+  const difference=(editingRecipe?.flourGrams??flour)-flour;
+  const hydration=flour&&Number.isFinite(water)?formatAmount(water/flour*100)+' %':'–';
+  const saltPercent=flour&&Number.isFinite(salt)?formatAmount(salt/flour*100)+' %':'–';
+  $('editorTotals').textContent=`${formatAmount(flour)} g Gesamtmehl · Hydration ${hydration} · Salz ${saltPercent}`;
+  if(Math.abs(difference)>1e-7){
+    $('editorTotals').textContent+=difference>0
+      ? ` · Noch ${formatAmount(difference)} g Mehl hinzufügen.`
+      : ` · ${formatAmount(-difference)} g Mehl zu viel.`;
+  }
+}
+
+function openEditor(id,copy=false){
+  const recipe=recipes.find(item=>item.id===id);
+  if(id&&(!recipe||(!copy&&baseIds.has(id))))return;
+  editingRecipe=copy?null:recipe;
+  editorReturnFocus=document.activeElement;
+  $('editorTitle').textContent=copy?'Rezept kopieren':recipe?'Rezept bearbeiten':'Neues Rezept';
+  $('editName').value=copy?recipe.name.slice(0,110)+' (Kopie)':recipe?.name??'';
+  $('fixedFlour').textContent=editingRecipe?`Feste Gesamtmehlmenge: ${formatAmount(recipe.flourGrams)} g`:'Die Summe der Mehlmengen wird beim Speichern festgelegt.';
+  $('editFlours').replaceChildren();
+  $('editExtras').replaceChildren();
+  $('editSteps').replaceChildren();
+  const flour=recipe?.flourGrams??defaultFlourGrams;
+  const flours=recipe?.flours??[{name:'Weizenmehl Type 550',pct:100}];
+  const flourPercent=flours.reduce((sum,item)=>sum+Number(item.pct),0);
+  for(const item of flours)addIngredient($('editFlours'),item.name,amountFromPercent(flour,item.pct*100/flourPercent));
+  for(const item of recipe?.extras??[])addIngredient($('editExtras'),item.name,amountFromPercent(flour,item.pct),item.unit);
+  for(const step of recipe?.steps??[])addStep(step);
+  $('editWater').value=amountFromPercent(flour,recipe?.water??70);
+  $('editSalt').value=amountFromPercent(flour,recipe?.salt??2);
+  $('editBake').value=recipe?.bake??'';
+  $('editWarmMinutes').value=recipe?.warmMinutes??0;
+  $('editWarmMinutes').closest('details').open=Number($('editWarmMinutes').value)>0;
+  $('editorStatus').textContent='';
+  updateEditorTotals();
+  updateStepControls();
+  $('editor').showModal();
+  $('editor').querySelector('.editor-content').scrollTop=0;
+  $('editSteps').querySelectorAll('textarea').forEach(fitStep);
+}
+
+function saveEditor(event){
+  event.preventDefault();
+  try{
+    const flours=readIngredients('editFlours');
+    const extras=readIngredients('editExtras');
+    const total=totalFlour(flours);
+    if(total<100||total>10000)throw Error('Die Gesamtmehlmenge muss zwischen 100 und 10.000 g liegen.');
+    const flourGrams=editingRecipe?.flourGrams??Math.round(total);
+    if(Math.abs(total-flourGrams)>1e-7)throw Error(editingRecipe
+      ? `Die Mehlmischung muss zusammen ${formatAmount(flourGrams)} g ergeben.`
+      : 'Die Gesamtmehlmenge muss eine ganze Grammzahl ergeben.');
+    if([...flours,...extras].some(row=>!row.name))throw Error('Bitte benenne jede Zutat.');
+    const toPercent=({name,amount,unit})=>({name,pct:amount/flourGrams*100,unit});
+    const recipe=validate({
+      ...editingRecipe,
+      flourGrams,
+      name:$('editName').value,
+      flours:flours.map(toPercent),
+      water:$('editWater').valueAsNumber/flourGrams*100,
+      salt:$('editSalt').valueAsNumber/flourGrams*100,
+      extras:extras.map(toPercent),
+      steps:Array.from($('editSteps').querySelectorAll('textarea'),field=>field.value.trim()).filter(Boolean),
+      bake:$('editBake').value,
+      warmMinutes:$('editWarmMinutes').value
+    });
+    const nextRecipes=editingRecipe?recipes.map(item=>item.id===recipe.id?recipe:item):[...recipes,recipe];
+    save(nextRecipes);
+    recipes=nextRecipes;
+    $('editor').close();
+    updateSelect();
+    renderList(recipe.id);
+    const summary=$('recipeList').querySelector('details[open] summary');
+    summary.focus();
+    summary.scrollIntoView({block:'nearest'});
+  }catch(error){
+    $('editorStatus').textContent=error.message;
+  }
+}
+
+$('recipeForm').addEventListener('submit',saveEditor);
+$('recipeForm').addEventListener('input',event=>{
+  $('editorStatus').textContent='';
+  if(event.target.closest('#editSteps'))fitStep(event.target);
+  if(event.target.matches('#editWater,#editSalt,#editFlours input'))updateEditorTotals();
+});
+$('recipeForm').addEventListener('click',event=>{
+  const button=event.target.closest('button');
+  if(!button)return;
+  const step=button.closest('#editSteps li');
+  if(step){
+    if(button.hasAttribute('data-remove')){
+      const next=step.nextElementSibling??step.previousElementSibling;
+      step.remove();
+      (next?.querySelector('textarea')??$('addStep')).focus();
+    }
+    if(button.hasAttribute('data-up'))step.previousElementSibling?.before(step);
+    if(button.hasAttribute('data-down'))step.nextElementSibling?.after(step);
+    updateStepControls();
+    if(step.isConnected)step.querySelector('textarea').focus();
+  }else if(button.hasAttribute('data-remove')){
+    const row=button.closest('.ingredient-row');
+    const list=row.parentElement;
+    row.remove();
+    (list.querySelector('[data-name]')??(list.id==='editFlours'?$('addFlour'):$('addExtra'))).focus();
+    updateEditorTotals();
+  }
+});
+$('addFlour').onclick=()=>addIngredient($('editFlours')).focus();
+$('addExtra').onclick=()=>addIngredient($('editExtras')).focus();
+$('addStep').onclick=()=>{
+  const step=addStep();
+  updateStepControls();
+  fitStep(step);
+  step.focus();
+};
+$('newRecipe').onclick=()=>openEditor();
+$('cancelEdit').onclick=()=>$('editor').close();
+$('editor').addEventListener('close',()=>{
+  if(editorReturnFocus?.isConnected)editorReturnFocus.focus();
+});
+$('recipeList').onclick=event=>{
+  const button=event.target.closest('button');
+  if(!button)return;
+  const {use,copy,edit,delete:remove}=button.dataset;
+  if(use){
+    $('recipeSelect').value=use;
+    recipeSelectionChanged();
+    document.querySelector('nav button[data-tab="calculator"]').click();
+  }else if(copy)openEditor(copy,true);
+  else if(edit)openEditor(edit);
+  else if(remove&&!baseIds.has(remove)&&confirm('Rezept wirklich löschen?')){
+    recipes=recipes.filter(recipe=>recipe.id!==remove);
+    normalizeLibrary();
+    save();
+    updateSelect();
+  }
+};
 function download(name,data){const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
 function syncPlannerSelect(){const el=$('planRecipe');const old=el.value;el.innerHTML=recipes.map(r=>`<option value="${escapeHTML(r.id)}">${escapeHTML(r.name)}</option>`).join('');el.value=recipes.some(r=>r.id===old)?old:($('recipeSelect').value||'ciabatta')}
 const planFields=['planRecipe','planTemperature','planRest','planBake','planPrep','planProof','planWarm','planStartWarm','planPreheat','finishAt'];
@@ -160,8 +369,6 @@ $('copyRecipe').onclick=async()=>{
     status.textContent='Kopieren nicht möglich.';
   }
 };
-$('newRecipe').onclick=()=>openEditor();$('cancelEdit').onclick=()=>$('editor').classList.add('hidden');$('saveRecipe').onclick=saveEditor;
-$('recipeList').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.use||b.dataset.edit||b.dataset.delete;if(b.dataset.use){$('recipeSelect').value=id;recipeSelectionChanged();document.querySelector('nav button[data-tab="calculator"]').click()}else if(b.dataset.edit)openEditor(id);else if(b.dataset.delete&&!baseIds.has(id)&&confirm('Rezept wirklich löschen?')){recipes=recipes.filter(r=>r.id!==id);normalizeLibrary();save();updateSelect()}};
 $('planButton').onclick=plan;$('planRecipe').onchange=() => planDefaults(true);$('planDefaults').onclick=() => planDefaults();for(const id of ['planBake','planPrep','planProof','planWarm','planStartWarm','planPreheat','finishAt'])$(id).addEventListener('input',plannerChanged);$('exportButton').onclick=()=>download('brotzeit-rezepte.json',{version:2,recipes:recipes.filter(r=>!baseIds.has(r.id))});
 function fullBackup(){let settings={};try{settings=JSON.parse(localStorage.getItem(backupKey)||'{}')}catch{}return{format:'brotzeit-backup',version:2,createdAt:new Date().toISOString(),recipes:clone(recipes.filter(r=>!baseIds.has(r.id))),settings}}
 $('backupButton').onclick=()=>{download('brotzeit-backup-'+new Date().toISOString().slice(0,10)+'.json',fullBackup());$('backupStatus').textContent='Backup heruntergeladen. Speichere die Datei in iCloud Drive oder einem anderen sicheren Ort.'};
